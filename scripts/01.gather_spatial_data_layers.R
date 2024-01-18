@@ -1,6 +1,8 @@
 # making spatial data ready for the random-forest
 # the RF initially starts with 3 variables (cattle density, rural population [not density], and cropland [in use, not available])
-input_path <- 'C:/Users/Gebruiker/Documents/Harare 2023/Spatial_data_repository'
+
+# Create a path where all the spatial data will be downloaded
+input_path <- 'D:/User/Spatial_data_repository'  #this is just an example
 
 # ------------------------------------------------------------------------------
 # shapefile
