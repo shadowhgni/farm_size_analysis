@@ -4,12 +4,12 @@
 # load packages
 require(tidyverse)
 # Set working directory
-setwd('C:/Users/Gebruiker/Documents/Harare 2023/Farm sizes across Africa/scripts')
+setwd('path_to_directory_must_end_with___/Farm sizes across Africa/scripts')  # Customize the path
 # Clean environment
 rm(list=ls())
 
 # the RF initially starts with 3 variables (cattle density, rural population [not density], and cropland [in use, not available]), but we will discuss adding some more variables
-input_path <- 'C:/Users/Gebruiker/Documents/Harare 2023/Spatial_data_repository'
+input_path <- 'D:/Users/Spatial_data_repository'    # Customize the path
 
 
 # clean previous maps from the output foutdateder (in case there is an update)
