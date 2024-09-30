@@ -347,8 +347,10 @@ unlink(temporary_dir, recursive = T)
 terra::writeRaster(wealth, paste0(input_path, '/poverty/wealth_ssa.tif'), overwrite = T)
 # ------------------------------------------------------------------------------
 # the inital stack of layers
-stacked_00 <- c(geosurvey_ha, cattle, pop, cropland_per_capita, sand0_30, elevation, slope, temperature, market, maizeyield, gdp, wealth)
-terra::writeRaster(stacked_00, '../data/processed/all_predictors_layers.tif', overwrite = T)
+stacked_00 <- c(geosurvey_ha, cattle, pop, cropland_per_capita, 
+                sand0_30, elevation, slope, temperature, rainfall,
+                market, maizeyield, gdp, wealth)
+terra::writeRaster(stacked_00, '../data/processed/all_predictorss.tif', overwrite = T)
 # ------------------------------------------------------------------------------
 # The following layers will serve for post-processing, namely masking out areas where farm size will not be predicted
 # the first is to mask out forest areas, the second for drylands (receiving less than 200 mm/year)

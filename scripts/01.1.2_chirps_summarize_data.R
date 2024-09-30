@@ -22,39 +22,42 @@ ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 list.files(path = paste0(input_path, '/rainfall/'), pattern="^chirps.*gz$")
 
 # ------------------------------------------------------------------------------
+
 # loop over list of rasters
-mylist <- list.files(path = paste0(input_path, '/rainfall/'), pattern="^chirps.*gz$")
+mylist <- list.files(path = paste0(input_path, '/rainfall/'), pattern = "^chirps.*gz$")
 
 # files per year
-for(y in c(1981:2023)){
+for(y in c(1981:2024)){
   print(y) 
-  print(list.files(path = paste0(input_path, '/rainfall/'), pattern=paste0("^chirps-v2.0.",y,".{1}.*tif.gz$")))
-  }
+  print(list.files(path = paste0(input_path, '/rainfall/'), pattern = paste0("^chirps-v2.0.",y,".{1}.*tif.gz$")))
+}
 
 # begin loop over grids
-
 if(!dir.exists(paste0(input_path, '/rainfall/rainfall_monthly')))
   dir.create(paste0(input_path, '/rainfall/rainfall_monthly'))
 if(!dir.exists(paste0(input_path, '/rainfall/rainfall_yearly')))
   dir.create(paste0(input_path, '/rainfall/rainfall_yearly'))
-for (y in c(1981:2023)){
-  rlist <- list()
-  s <- terra::rast()
+
+for (y in c(1981:2024)){
+  s_yr <- terra::rast()
   for (m in c('01', '02', '03', '04', '05', '06', '07','08','09','10','11','12')){
+    rlist <- list()
+    s_mt <- terra::rast()
     for (d in 1:3){
       ingridname <- paste0(input_path, "/rainfall/CHIRPS/chirps-v2.0.", y,".", m, ".", d, ".tif")
       print(ingridname)
-      try(r <- terra::crop(terra::rast(ingridname), ssa, mask=T))
+      try(r <- terra::crop(terra::rast(ingridname), ssa, mask = T))
       r[r<0] <- NA
       names(r) <- paste0("rain_", gsub("\\.", "_", gsub(paste0(input_path, "/rainfall/CHIRPS/chirps-v2.0."), "", gsub(".tif", "", ingridname))))
       rlist[[length(rlist)+1]] <- as.name(names(r))
-      s <- c(s, r)
-      }
-    tmp.tot.mt <- sum(s); names(tmp.tot.mt) <- paste0(y, '_mm')
-    terra::writeRaster(tmp.tot.mt, paste0(input_path, '/rainfall/rainfall_monthly/chirps_monthly_rainfall_', y, '_', m, '.tif'), overwrite = T)
+      s_mt <- c(s_mt, r)
+      s_yr <- c(s_yr, r)
     }
-  tmp.tot.yr <- sum(s); names(tmp.tot.yr) <- paste0(y, '_mm')
-  terra::writeRaster(tmp.tot.yr, paste0(input_path, '/rainfall/rainfall_yearly/chirps_yearly_rainfall_', y, '.tif'), overwrite = T)
+    tmp.tot.mt <- sum(s_mt); names(tmp.tot.mt) <- paste0(y, '.', m, '_mm')
+    terra::writeRaster(tmp.tot.mt, paste0(input_path, '/rainfall/rainfall_monthly/chirps-monthly-rainfall-', y, '-', m, '.tif'), overwrite = T)
   }
-
-# ------------------------------------------------------------------------------
+  if(y != 2024){
+    tmp.tot.yr <- sum(s_yr); names(tmp.tot.yr) <- paste0(y, '_mm')
+    terra::writeRaster(tmp.tot.yr, paste0(input_path, '/rainfall/rainfall_yearly/chirps-yearly-rainfall-', y, '.tif'), overwrite = T)    
+  }
+}

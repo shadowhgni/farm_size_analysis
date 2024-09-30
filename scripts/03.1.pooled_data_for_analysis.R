@@ -14,46 +14,78 @@ require(tidyverse)
 input_path <- 'C:/Users/DHOUGNI/OneDrive - CIMMYT/Documents/Harare 2023/Spatial_data_repository'
 
 #############################################################################################################
+#define the region of interest: subSaharan Africa, excluding small islands 
+country <- geodata::world(path=input_path, resolution=5, level=0)
+isocodes <- geodata::country_codes()
+isocodes_ssa <- subset(isocodes, NAME=='Sudan' | UNREGION1=='Middle Africa' | UNREGION1=='Western Africa' | UNREGION1=='Southern Africa' | UNREGION1=='Eastern Africa')
+isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME!='Mauritius' & NAME!='Mayotte' & NAME!='RC)union' & NAME!='Saint Helena' & NAME!='SC#o TomC) and PrC-ncipe' & NAME!='Seychelles') # keep the mainland + Madagascar only, remove islands
+ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
+
+#define the countries for which LSMS data are available
+fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+
+# shapefile of administrative units
+if(!dir.exists(paste0(input_path,'/gadm/Benin'))) dir.create(paste0(input_path,'/gadm/Benin'))
+if(!dir.exists(paste0(input_path,'/gadm/Burkina'))) dir.create(paste0(input_path,'/gadm/Burkina'))
+if(!dir.exists(paste0(input_path,'/gadm/Cote_d_Ivoire'))) dir.create(paste0(input_path,'/gadm/Cote_d_Ivoire'))
+if(!dir.exists(paste0(input_path,'/gadm/Ethiopia'))) dir.create(paste0(input_path,'/gadm/Ethiopia'))
+if(!dir.exists(paste0(input_path,'/gadm/Guinea_Bissau'))) dir.create(paste0(input_path,'/gadm/Guinea_Bissau'))
+
+if(!dir.exists(paste0(input_path,'/gadm/Malawi'))) dir.create(paste0(input_path,'/gadm/Malawi'))
+if(!dir.exists(paste0(input_path,'/gadm/Mali'))) dir.create(paste0(input_path,'/gadm/Mali'))
+
+if(!dir.exists(paste0(input_path,'/gadm/Niger'))) dir.create(paste0(input_path,'/gadm/Niger'))
+if(!dir.exists(paste0(input_path,'/gadm/Nigeria'))) dir.create(paste0(input_path,'/gadm/Nigeria'))
+if(!dir.exists(paste0(input_path,'/gadm/Senegal'))) dir.create(paste0(input_path,'/gadm/Senegal'))
+if(!dir.exists(paste0(input_path,'/gadm/Tanzania'))) dir.create(paste0(input_path,'/gadm/Tanzania'))
+if(!dir.exists(paste0(input_path,'/gadm/Togo'))) dir.create(paste0(input_path,'/gadm/Togo'))
+
+if(!dir.exists(paste0(input_path,'/gadm/Uganda'))) dir.create(paste0(input_path,'/gadm/Uganda'))
+if(!dir.exists(paste0(input_path,'/gadm/Zambia'))) dir.create(paste0(input_path,'/gadm/Zambia'))
+
+ben_distr <- geodata::gadm('Benin', level=3, path=paste0(input_path,'/gadm/Benin'))
+bfa_distr <- geodata::gadm('Burkina Faso', level=3, path=paste0(input_path,'/gadm/Burkina'))
+civ_distr <- geodata::gadm('CIV', level=4, path=paste0(input_path,'/gadm/Cote_d_Ivoire'))
+eth_distr <- geodata::gadm('Ethiopia', level=3, path=paste0(input_path,'/gadm/Ethiopia'))
+gnb_distr <- geodata::gadm('GNB', level=2, path=paste0(input_path,'/gadm/Guinea_Bissau'))
+
+mwi_distr <- geodata::gadm('Malawi', level=3, path=paste0(input_path,'/gadm/Malawi'))
+mli_distr <- geodata::gadm('Mali', level=4, path=paste0(input_path,'/gadm/Mali'))
+ner_distr <- geodata::gadm('Niger', level=3, path=paste0(input_path,'/gadm/Niger'))
+nga_distr <- geodata::gadm('Nigeria', level=2, path=paste0(input_path,'/gadm/Nigeria'))
+sen_distr <- geodata::gadm('Senegal', level=4, path=paste0(input_path,'/gadm/Senegal'))
+tza_distr <- geodata::gadm('Tanzania', level=3, path=paste0(input_path,'/gadm/Tanzania'))
+tgo_distr <- geodata::gadm('Togo', level=3, path=paste0(input_path,'/gadm/Togo'))
+uga_distr <- geodata::gadm('Uganda', level=4, path=paste0(input_path,'/gadm/Uganda'))
+zmb_distr <- geodata::gadm('Zambia', level=2, path=paste0(input_path,'/gadm/Zambia'))
+
+fourteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
+
+#############################################################################################################
 # retrieve all required spatial layers from input_path
-geosurvey_ha = terra::rast(paste0(input_path, '/spam/spam_cropland_ssa.tif'))
-cattle = terra::rast(paste0(input_path, '/cattle-density/2010_cattle_density_ssa.tif'))
-pop <- terra::rast(paste0(input_path, '/population/2020_population_density_ssa.tif'))
-cropland_per_capita <- terra:: rast(paste0(input_path, '/spam/cropland_per_capita_ssa.tif'))
-sand0_30 <- terra::rast(paste0(input_path, '/soil_world/sand_content_0_30cm_ssa.tif'))
-elevation <- terra::rast(paste0(input_path, '/wc2.1_30s/elevation_slope_ssa.tif'))
-# temperature <- terra::rast(paste0(input_path, '/temperature/temperature_ssa.tif'))
-market <- terra::rast(paste0(input_path, '/travel/travel_time_to_cities_6.tif'))
-rainfall <- terra::rast(paste0(input_path, '/rainfall/rainfall_ssa.tif'))
-maizeyield <- terra::rast(paste0(input_path, '/maize_water_lim_yield_SSA/maize_yield_ssa.tif'))
-gdp <- terra::rast(paste0(input_path, '/FAO-GDP/gdp_ssa.tif'))
-wealth <- terra::rast(paste0(input_path, '/poverty/wealth_ssa.tif'))
+stacked_00 <- terra::rast('../data/processed/all_predictors.tif')
+
 
 # ------------------------------------------------------------------------------
 # lsms data
 load('../data/processed/lsms_and_zambia.rdata') # this is the updated dataset with 14 countries surveyed
 lsms <- lsms_and_zambia |>
   filter(!is.na(farm_area_ha), !is.na(x), !is.na(y), !(x == 0 & y == 0) )  # get rid of farms whose size or GPS coord. are not available
-  # mutate(farm_area_ha = ceiling(100 * farm_area_ha) / 100) # round UP to 2 digits which assigns 0.01 to the smallest farms (instead of 0)
 lsms_00 <- lsms # backup the whole initial dataset (LSMS + Zambia) 
-
-# # Restrict LSMS to 2018-2019 waves + 2015 for Tanzania and 2014 for Uganda (less than 1000 farms in 2018-2019)
-# lsms <- bind_rows(
-#   lsms |>
-#     filter(!country %in% c('Tanzania', 'Uganda'), year > 2017, year < 2020),
-#   lsms |>
-#     filter(paste0(country, '_', year) %in% c('Tanzania_2014', 'Uganda_2015')),
-# )
 
 # Restrict data to 2008-2021 years  (Malawi_2004 and Uganda_2005 are excluded)
 lsms <- lsms |> filter(year > 2007)
 
-# Remove waves with less than 700 datapoints per country
+
+# Remove Tanzania 2019 (based on difficulties to retrieve EA and assumption that the 154 farms are no longer representative)
+# Generally, remove all surveys yielding less than 500 farms (as issues of representativeness arise)
 summary_lsms <- lsms |> 
   group_by(country, year) |> 
   summarize(n_farms = n())
 
 small_waves_lsms <- summary_lsms |>
-  filter(n_farms < 700 )
+  filter(n_farms < 500 )
 
 lsms <- lsms |>
   anti_join(small_waves_lsms |>
@@ -82,7 +114,6 @@ lsms$gadm_4 <- lsms$gadm_3 <- lsms$gadm_2 <- lsms$gadm_1 <- lsms$gadm_0 <- NA
 lsms <- terra::vect(lsms, geom = c('x', 'y'), crs = 4326)  
 
 # Assign admin div names and unique farm ID to all observations in the dataset
-# lsms$country <- terra::extract(fourteen_count_distr[,3], lsms)$COUNTRY  # assign the GADM country names using the level 0 of GADM division
 lsms$gadm_0 <- terra::extract(fourteen_count_distr[, 'GID_0'], lsms)$GID_0                                   # create region names using the country name of GADM division
 lsms$gadm_1 <- terra::extract(fourteen_count_distr[, 'NAME_1'], lsms)$NAME_1                                 # create region names using the level 1 of GADM division
 lsms$gadm_2 <- terra::extract(fourteen_count_distr[, 'NAME_2'], lsms)$NAME_2                                 # create region names using the level 2 of GADM division
@@ -90,7 +121,10 @@ lsms$gadm_3 <- terra::extract(fourteen_count_distr[, 'NAME_3'], lsms)$NAME_3    
 lsms$gadm_4 <- terra::extract(fourteen_count_distr[, 'NAME_4'], lsms)$NAME_4                                 # create region names using the level 4 of GADM division
 lsms_01 <- lsms # backup the whole LSMS + Zambia spat vector
 
-# Trim to exclude extremely large farms and landless farms (at GADM_1 level)
+# Restrict Nigerian data to exclude Bauchi, Borno and Yobe from 2011 to 2015 (Boko Haram)
+lsms <- lsms [!lsms$gadm_1 %in% c('Bauchi', 'Borno', 'Yobe')]
+lsms_02 <- lsms
+# Trim to exclude extremely large farms (> 95th quantile) and landless farms (at GADM_1 level)
 lsms_per_region <- terra::as.data.frame(lsms) |>
   group_by(country, gadm_0, gadm_1) |>
   summarize(n_farms_years = n(),
@@ -115,9 +149,8 @@ trim_1 <- inner_join(
 trim_1 <- terra::vect(trim_1, geom = c('x', 'y'), crs = 'EPSG:4326')
 trim_1 <- subset(trim_1, trim_1$farm_area_ha <= trim_1$q_95 & trim_1$farm_area_ha > 0)
 trim_1[['q_95']] <- NULL
-# trim_1 <- na.omit(trim_1)
 lsms <- trim_1; rm(trim_1)
-lsms_02 <- lsms
+lsms_03 <- lsms
 
 # plot the LSMS + Zambia data points
 lsms_colour <- cbind(terra::as.data.frame(lsms), terra::crds(lsms)) |>
@@ -134,9 +167,13 @@ terra::plot(ssa, axes = F, add = T)
 boxplot(lsms$farm_area_ha ~ lsms$country, ylim = c(0, 15), xlab = '', ylab = 'Farm size (ha)', cex.axis = 0.85, cex.lab = 1.3)
 dev.off()
 
-# stack all the raster layers and save it as a single .tiff file
-stacked <- c(geosurvey_ha, cattle, pop, sand0_30,
-             elevation, market, rainfall, maizeyield, gdp)  
+# stack all the raster layers needed for analysis
+stacked <- c(stacked_00$cropland, stacked_00$cattle, stacked_00$pop, 
+             stacked_00$cropland_per_capita,
+             stacked_00$sand, stacked_00$elevation, stacked_00$slope,
+             stacked_00$temperature, stacked_00$rainfall, stacked_00$maizeyield, 
+             stacked_00$market, stacked_00$gdp, stacked_00$wealth_index )  
+
 terra::writeRaster(stacked, '../data/processed/stacked_rasters_africa.tif', overwrite = T)
 terra::writeVector(lsms, '../data/processed/lsms_africa.shp', overwrite = T)
 terra::writeVector(lsms_01, '../data/processed/backup_untrimmed_lsms_01_africa.shp', overwrite = T)
@@ -156,14 +193,14 @@ my_lsms <- data.frame(cbind(my_lsms, terra::extract(stacked, terra::vect(my_lsms
 
 # merge data sets
 lsms_spatial <- my_lsms[c('farm_area_ha',
-                          'cropland', 'cattle', 
-                          'population', 'sand', 'elevation', 'market',
-                          'rainfall', 'maizeyield', 'gdp')]
+                          'cropland', 'cattle', 'pop', 'cropland_per_capita',
+                          'sand', 'elevation', 'slope', 'temperature', 'rainfall',
+                          'maizeyield', 'market', 'gdp')] # wealth_index has too many NA
 lsms_spatial <- na.omit(lsms_spatial) 
 
 save(stacked, file='../data/processed/stacked_africa.Rdata')
 save(lsms_spatial, file='../data/processed/lsms_spatial_africa.Rdata')
-save(lsms_00, lsms_03, lsms_spatial, my_lsms, file='../data/processed/my_lsms_africa.Rdata') 
+save(lsms_00, , lsms_01, lsms_02, lsms_03, lsms_spatial, my_lsms, file='../data/processed/my_lsms_africa.Rdata') 
 
 # ------------------------------------------------------------------------------
 # per country

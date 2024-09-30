@@ -1,12 +1,11 @@
 # Retrieving LSMS data
-# Note that a manual screening of the fuzzy match of location names was done. 
+# Note that a manual screening of the fuzzy match of location names was done in Uganda. 
 # The related file is named "Uganda_proposed_matching_names-jvs.csv" and located in "../data/raw/received" 
 
 # load packages
 require(tidyverse)
 # Set working directory
-setwd('C:/Users/DHOUGNI/OneDrive - CIMMYT/Documents/Harare 2023/Farm sizes across Africa/scripts')
-
+setwd(here::here())
 # Clean environment
 rm(list=ls())
 
@@ -4200,8 +4199,10 @@ write_csv(uga_raw, file = '../data/processed/Uganda_2005_raw.csv')
 # Household ID ==> is a combination of vague, grappe, menage across files, all in s00_me_***
 # EA is supposed to be grappe variable across files
 
-# sA function to extract farm size from LSMS in West Africa (year 2018)
-extract_farm_sizes <- function(country_year){
+# A function to extract farm size from LSMS in West Africa 
+# the function was made in stata and csv because there were discreappancies between STATA and CSV zip
+# check Benin 2021  and Burkina  2021
+extract_farm_sizes_stata <- function(country_year){
   new_fold <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep(country_year, dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
   my_cty_zip <- dir(new_fold)[grep('stata.*\\.zip$', dir(new_fold), ignore.case = T)]
   my_cty_zip <- paste0(new_fold, '/', my_cty_zip)
@@ -4297,6 +4298,102 @@ extract_farm_sizes <- function(country_year){
   
   unlink('../data/processed/temporary', recursive = T)
 }
+extract_farm_sizes_csv <- function(country_year){
+  new_fold <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep(country_year, dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
+  my_cty_zip <- dir(new_fold)[grep('csv\\.zip$', dir(new_fold), ignore.case = T)]
+  my_cty_zip <- paste0(new_fold, '/', my_cty_zip)
+  my_file_list <- unzip(my_cty_zip, list =T)$Name
+  temporary_dir <- '../data/processed/temporary'
+  if(dir.exists(temporary_dir)) unlink(temporary_dir, recursive = T)
+  dir.create(temporary_dir)
+  unzip(my_cty_zip, files = basename(my_file_list[grep('s00_me_|s01_me_|s16a_me_|s16c_me_|grappe_gps', my_file_list)]), exdir = temporary_dir)
+  
+  household_roster_1 <- dir(temporary_dir, recursive = T)[grep('s00_me_', dir(temporary_dir, recursive = T), ignore.case = T)]
+  household_roster_2 <- dir(temporary_dir, recursive = T)[grep('s01_me_', dir(temporary_dir, recursive = T), ignore.case = T)]
+  plot_roster <- dir(temporary_dir, recursive = T)[grep('s16a_me_', dir(temporary_dir, recursive = T), ignore.case = T)]
+  crop_roster <- dir(temporary_dir, recursive = T)[grep('s16c_me_', dir(temporary_dir, recursive = T), ignore.case = T)]
+  ea_characteristics <- dir(temporary_dir, recursive = T)[grep('grappe_gps', dir(temporary_dir, recursive = T), ignore.case = T)]
+  
+  cluster_data <- read_csv(paste0(temporary_dir, '/', household_roster_1))
+  hh_data <- read_csv(paste0(temporary_dir, '/', household_roster_2))
+  plot_data <- read_csv(paste0(temporary_dir, '/', plot_roster))
+  crop_data <- read_csv(paste0(temporary_dir, '/', crop_roster))
+  
+  ifelse(length(ea_characteristics) == 0, {
+    ea_data <- read_csv(paste0('../data/processed/temp_west_af/ea_data_', substr(country_year, 1, nchar(country_year) - 4), '2018.csv'))
+  },{
+    ea_data <- read_csv(paste0(temporary_dir, '/', ea_characteristics))
+    write_csv(ea_data, file = paste0('../data/processed/temp_west_af/ea_data_', country_year, '.csv'))
+  })
+  my_cty_raw <- hh_data |>
+    select(vague, grappe, menage, s01q01) |>
+    filter(!is.na(s01q01)) |> # Sex must be filled in
+    mutate(ea_id = as.character(grappe), 
+           farm_id = as.character(paste0(sprintf('%04g', grappe), '_', vague, '_', sprintf('%04g', menage)))) |>
+    group_by(ea_id, farm_id) |>
+    summarise(hh_size = n() ) |>
+    inner_join(
+      crop_data |>
+        select(vague, grappe, menage, s16cq02, s16cq03, s16cq04) |>
+        rename(field_id = s16cq02, plot_id = s16cq03, crop_code = s16cq04) |>
+        mutate(farm_id = as.character(paste0(sprintf('%04g', grappe), '_', vague, '_', sprintf('%04g', menage))),
+               field_id = paste0(farm_id, '_X'), 
+               plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
+               plot_land_use = case_when(is.na(crop_code) ~ NA,
+                                         .default = 'CULTIVATED') ) |>
+        filter(plot_land_use == 'CULTIVATED') ) |>
+    inner_join(
+      plot_data |>
+        select(vague, grappe, menage, s16aq02, s16aq03, s16aq09a, s16aq09b, s16aq45, s16aq47) |>
+        rename(field_id = s16aq02, plot_id = s16aq03,
+               reported_area = s16aq09a, report_unit = s16aq09b, measured_plot = s16aq45, measured_plot_area = s16aq47) |>
+        mutate(ea_id = as.character(grappe), 
+               farm_id = as.character(paste0(sprintf('%04g', grappe), '_', vague, '_', sprintf('%04g', menage))),
+               field_id = paste0(farm_id, '_X'), 
+               plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
+               report_unit = case_when(report_unit == 1 ~ 'ha',
+                                       report_unit == 2 ~ 'sq_meter',
+                                       .default = NA),
+               measured_plot = case_when(measured_plot == 1 ~ 'GPS-measured',
+                                         measured_plot == 2 ~ 'not measured',
+                                         .default = NA),
+               reported_area_ha = case_when(report_unit == 'ha' ~ reported_area,
+                                            report_unit == 'sq_meter' ~ reported_area / 10000),
+               measured_plot_area_ha = round(measured_plot_area, 4))
+    )
+  
+  ea_data <- ea_data |>
+    select(grappe, vague, coordonnes_gps__Longitude, coordonnes_gps__Latitude) |>
+    rename( x = coordonnes_gps__Longitude, y = coordonnes_gps__Latitude) |>
+    mutate(ea_id = as.character(grappe) ) |>
+    inner_join(
+      cluster_data |>
+        select(vague, grappe, menage) |>
+        mutate(ea_id = as.character(grappe), 
+               farm_id = as.character(paste0(sprintf('%04g', grappe), '_', vague, '_', sprintf('%04g', menage)))) |>
+        group_by(ea_id, farm_id) ) |>
+    ungroup() |>
+    select(ea_id, farm_id, x, y) |>
+    distinct(farm_id, .keep_all = T)
+  
+  my_cty_raw <- inner_join(
+    my_cty_raw,
+    ea_data |>
+      select(ea_id, farm_id, x, y) |>
+      group_by(farm_id) |>
+      distinct() |>
+      mutate(country = substr(country_year, 1, nchar(country_year) - 5),
+             year = substr(country_year, nchar(country_year) - 3, nchar(country_year)),
+             farm_id = as.character(farm_id)) )  |>
+    ungroup() |>
+    mutate(ea_id = as.character(ea_id)) |>
+    select(x, y, country, year, ea_id, farm_id, hh_size, field_id, plot_id,
+           reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
+  my_cty_raw$ea_id <- as.character(my_cty_raw$ea_id)
+  write_csv(my_cty_raw, file = paste0('../data/processed/', country_year,'_raw.csv'))
+  
+  unlink('../data/processed/temporary', recursive = T)
+}
 
 temp_west_af <- '../data/processed/temp_west_af'
 if(dir.exists(temp_west_af)) unlink(temp_west_af, recursive = T)
@@ -4304,7 +4401,9 @@ dir.create(temp_west_af)
 
 west_af_cty <- expand.grid(cty = c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Guinea_Bissau' , 'Niger', 'Mali', 'Senegal', 'Togo'), yr = c('_2018', '_2021'))
 west_af_countries <- with(west_af_cty, paste0(cty, yr)); rm(west_af_cty)
-sapply(west_af_countries, extract_farm_sizes)
+west_af_countries_minus_bfa_2021 <- west_af_countries [west_af_countries != 'Burkina_2021']
+sapply(west_af_countries_minus_bfa_2021, extract_farm_sizes_stata)
+extract_farm_sizes_csv('Burkina_2021')
 #######################################################################
 # Get LSMS data from Burkina 2014
 
@@ -4596,5 +4695,6 @@ mli_raw <- inner_join(
          reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
 
 write_csv(mli_raw, file = paste0('../data/processed/', 'Mali_2017','_raw.csv'))
-unlink(temp_west_af)
+unlink(temp_west_af, recursive = T)
+unlink(temporary_dir, recursive = T)
 ###########################################################################################
