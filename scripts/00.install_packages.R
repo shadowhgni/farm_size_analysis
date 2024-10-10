@@ -20,9 +20,11 @@ install_me <- function(packages) {
 }
 
 # List of required packages
-required_packages <- c('tidyverse', 'here', 'curl', 'patchwork', 'ggExtra',
+required_packages <- c('tidyverse', 'here', 'curl', 
+                       'patchwork', 'ggExtra', 'GGally',
                        'afrilearndata', 'terra', 'geodata',
-                       'caret', 'gbm', 'randomForest', 'quantregForest',
+                       'caret', 'gbm', 'xgboost', 'kernlab', 'e1071',
+                       'randomForest', 'quantregForest', 'ranger', 
                        'EnvStats', 'fitdistrplus')
 
 # Call the function with the list of packages

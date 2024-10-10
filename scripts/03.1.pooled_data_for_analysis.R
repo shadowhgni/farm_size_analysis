@@ -190,6 +190,7 @@ my_lsms <- my_lsms |>
   sf::st_set_crs(4326)
 lsms_03 <- my_lsms # backup the dataset as SF object
 my_lsms <- data.frame(cbind(my_lsms, terra::extract(stacked, terra::vect(my_lsms))))
+terra::writeVector(terra::vect(lsms_03), '../data/processed/lsms_trimmed_africa.shp', overwrite = T)
 
 # merge data sets
 lsms_spatial <- my_lsms[c('farm_area_ha',
@@ -198,104 +199,16 @@ lsms_spatial <- my_lsms[c('farm_area_ha',
                           'maizeyield', 'market', 'gdp')] # wealth_index has too many NA
 lsms_spatial <- na.omit(lsms_spatial) 
 
-save(stacked, file='../data/processed/stacked_africa.Rdata')
+# save(stacked, file='../data/processed/stacked_africa.Rdata')
 save(lsms_spatial, file='../data/processed/lsms_spatial_africa.Rdata')
-save(lsms_00, , lsms_01, lsms_02, lsms_03, lsms_spatial, my_lsms, file='../data/processed/my_lsms_africa.Rdata') 
+save(lsms_00, lsms_01, lsms_02, lsms_03, lsms_spatial, my_lsms, file='../data/processed/my_lsms_africa.Rdata') 
 
 # ------------------------------------------------------------------------------
 # per country
 per_country_data=function(my_country){
   print(paste0('==========================', my_country, '======================='))
   cty <- subset(ssa, ssa$GID_0==fourteen_country_codes[which(fourteen_countries == my_country)])
-  lsms_cty <- terra::crop(lsms, cty)
-  png(paste0('../output/maps/',my_country,'-lsms.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0('LSMS - ',my_country), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(lsms_cty, col='red', cex=1, axes=F, add=T)
-    terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  cropland_cty <- terra::crop(geosurvey_ha, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-cropland.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Cropland (ha)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(cropland_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  cattle_cty <- terra::crop(cattle, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-cattle.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Cattle density (#/km2)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(cattle_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  pop_cty <- terra::crop(pop, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-pop.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Population density (#/km2)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(pop_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  sand0_30_cty <- terra::crop(sand0_30, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-sand0_30.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Soil texture (% sand)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(sand0_30_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  elevation_cty <- terra::crop(elevation, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-elevation.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Elevation map (m.a.s.l)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-  terra::plot(elevation_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-  terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  market_cty <- terra::crop(market, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-market.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Travel time to nearest city (min)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-  terra::plot(market_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-  terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  rainfall_cty <- terra::crop(rainfall, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-rainfall.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Rainfall (mm)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(rainfall_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-  dev.off()
-  })
-  
-  maizeyield_cty <- terra::crop(maizeyield, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-maizeyield.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Water-limited potential maize yield (kg/ha)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(maizeyield_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-    dev.off()
-  })
-  
-  gdp_cty <- terra::crop(gdp, lsms_cty, mask=T)
-  png(paste0('../output/maps/',my_country,'-gdp.png'), units="in", width=5.5, height=5.5, res=1000)
-  print({
-    terra::plot(cty, col='azure', main=paste0(my_country,'- Country GDP (US$, price 2015)'), panel.first=grid(col="gray", lty="solid"), pax=list(cex.axis=1.4))
-    terra::plot(gdp_cty, cex=1, axes=F, add=T, plg=list(loc = "bottom"))
-    terra::plot(cty, axes=F, add=T)
-    dev.off()
-  })
+  lsms_cty <- terra::crop(terra::vect(lsms_03), cty)
   
   stacked_cty <- terra::crop(stacked, cty)
   terra::writeRaster(stacked_cty, paste0('../data/processed/stacked_cty_rasters_', my_country, '.tif'), overwrite = T)
@@ -311,8 +224,9 @@ per_country_data=function(my_country){
   # merge data sets
   lsms_cty_spatial <- data.frame(cbind(lsms_cty_spatial, terra::extract(stacked_cty, terra::vect(lsms_cty_spatial))))
   lsms_cty_spatial <- lsms_cty_spatial[c('farm_area_ha', 'cropland', 'cattle', 
-                                         'population', 'sand', 'elevation', 'market',
-                                         'rainfall', 'maizeyield', 'gdp')]
+                                         'pop', 'cropland_per_capita', 
+                                         'sand', 'elevation', 'slope', 'temperature', 'rainfall', 
+                                         'market', 'maizeyield')] # gdp and wealth_index were removed
   
   save(stacked_cty, file=paste0('../data/processed/stacked_',my_country,'.Rdata'))
   save(lsms_cty_spatial, file=paste0('../data/processed/lsms_cty_spatial_',my_country,'.Rdata'))

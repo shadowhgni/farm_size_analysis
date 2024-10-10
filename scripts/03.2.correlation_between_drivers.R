@@ -75,14 +75,59 @@ lsms_spatial_raw <- cbind(lsms_and_zambia,
                                        select(x, y), ID = F)) |>
   filter(!(x == 0 & y == 0))
 lsms_spatial_for_all_analyses <- lsms_spatial_raw |>
-  select(!c(country, year, farm_id, hh_size, gdp, wealth_index)) |>
-  na.omit()
-save(lsms_spatial_raw, lsms_spatial_for_all_analyses, file = '../data/processed/lsms_spatial_raw.rdata')
-
+  select(!c(country, year, farm_id, hh_size, gdp, wealth_index)) 
 
 # Check correlation matrix to select relevant drivers
 P00 <- lsms_spatial_for_all_analyses |>
   select(!c(x, y)) |>
-  GGally::ggpairs(upper = list(continuous = GGally::wrap("cor", size = 4)), 
+  GGally::ggpairs(upper = list(continuous = GGally::wrap("cor", size = 2)), 
                   diag = list(continuous = GGally::wrap("densityDiag")))
-P00  
+
+png('../data/processed/drivers_correlation_matrix.png', height = 15, width = 20, units = 'cm', res = 600)
+P00
+ggsave('../data/processed/drivers_correlation_matrix.png')
+dev.off()
+
+lsms_spatial_reduced <- lsms_spatial_for_all_analyses |>
+  select(!c(elevation)) |>
+  na.omit()
+save(lsms_spatial_raw, lsms_spatial_reduced,
+     file = '../data/processed/lsms_spatial_raw.rdata')
+
+# ## Run several loops like yhis one
+# # Remove one variable at time, and check model's performances against full model
+# deb <- Sys.time()
+# comp_var <- tibble()
+# train_control <- caret::trainControl(method = 'cv', number = 10, seeds = 2024)
+# tune_grid <- expand.grid(mtry = 4:5,                # in principle, I should start with 4:6       
+#                          splitrule = 'extratrees', # in principle, I should start with c('extratrees', 'variance')       
+#                          min.node.size = c(50, 55, 60))       # in principle, I should start with c(45, 50, 55, 60)        
+# 
+# for (i in names(lsms_spatial)[2:ncol(lsms_spatial)]){
+#   print(paste0('-----------------', i, '--------------------'))
+#   reduced_lsms <- lsms_spatial |>
+#     select(!i)
+#   rf_reduced <- caret::train(farm_area_ha ~ .,
+#                              data = reduced_lsms,
+#                              method = 'ranger',
+#                              trainControl = train_control,
+#                              importance  = 'permutation',
+#                              num.trees = 1500
+#   )
+#   rsq <- caret::postResample(predict(rf_reduced, reduced_lsms), reduced_lsms$farm_area_ha)[2]
+#   rmse <- caret::postResample(predict(rf_reduced, reduced_lsms), reduced_lsms$farm_area_ha)[1]
+#   one_row <- c(model = i, rsq = rsq, rmse = rmse)
+#   comp_var <- bind_rows(comp_var, one_row)
+#   assign(paste0('rf_reduced_', i), rf_reduced, envir = .GlobalEnv)
+# }
+# rf_full <- caret::train(farm_area_ha ~ .,
+#                         data = lsms_spatial,
+#                         method = 'ranger',
+#                         trainControl = train_control,
+#                         importance  = 'permutation',
+#                         num.trees = 1500
+# )
+# rsq <- caret::postResample(predict(rf_full, lsms_spatial), lsms_spatial$farm_area_ha)[2]
+# rmse <- caret::postResample(predict(rf_full, lsms_spatial), lsms_spatial$farm_area_ha)[1]
+# one_row <- c(model = 'full', rsq = rsq, rmse = rmse)
+# comp_var <- bind_rows(comp_var, one_row)
