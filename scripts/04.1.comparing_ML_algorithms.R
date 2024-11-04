@@ -9,7 +9,7 @@ require(tidyverse)
 rm(list=ls())
 
 # Set working directory
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # ------------------------------------------------------------------------------
 # Preparation for functions and mapping

@@ -9,7 +9,7 @@ require(tidyverse)
 rm(list=ls())
 
 # Set working directory
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # ------------------------------------------------------------------------------
 # Preparation for functions and mapping
@@ -134,6 +134,24 @@ gp_model <- list(
   prob = NULL
 )
 
+# define the custom model for generalized random forest (spatialML::grf)
+grf_model <- list(
+  type = "Regression",
+  library = "SpatialML",
+  loop = NULL,
+  parameters = data.frame(parameter = "mtry", class = "numeric", label = "mtry"),
+  grid = function(x, y, len = NULL, search = "grid") {
+    expand.grid(mtry = seq(1, ncol(x), by = 1))
+  },
+  fit = function(x, y, wts, param, lev, last, classProbs, ...) {
+    SpatialML::grf(x, y, mtry = param$mtry, ...)
+  },
+  predict = function(modelFit, newdata, submodels = NULL) {
+    predict(modelFit, newdata)
+  },
+  prob = NULL
+)
+
 # ------------------------------------------------------------------------------
 # Prepare data: load lsms data as my_lsms (lsms with geometry as data.frame)
 lsms_region <- terra::vect('../data/processed/lsms_trimmed_africa.shp') # this was retrieved from '02.customize_spatial_data.r'
@@ -173,6 +191,9 @@ compare_gadm_rf_models <- function(my_country){
     training_set <- my_lsms_cty |>
       filter(gadm_1 != my_gadm) |>
       select(!c(x, y, gadm_1))
+    training_coords <- my_lsms_cty |>
+      filter(gadm_1 != my_gadm) |>
+      select(x, y)
     test_set <- my_lsms_cty |>
       anti_join(training_set) |>
       select(!c(x, y, gadm_1))
@@ -231,12 +252,45 @@ compare_gadm_rf_models <- function(my_country){
     test_set$pred3_gadm <- predict(mod3, test_set)
     gadm_test_knn_rsq <- round(cor(test_set$farm_area_ha, test_set$pred3_gadm)^2, 2)
     
+    # train over the rest of the country with grf
+    mod4 <- SpatialML::grf(
+      farm_area_ha ~ cropland + cattle + pop + cropland_per_capita +
+        sand + slope + temperature + rainfall + market + maizeyield,
+      data = training_set,
+      coords = as.matrix(training_coords),
+      kernel = 'adaptive',
+      bw = 8,
+      importance = 'permutation'
+    )
+    
+    # mod4 <- caret::train(
+    #   farm_area_ha ~ cropland + cattle + pop + cropland_per_capita +
+    #     sand + slope + temperature + rainfall + market + maizeyield,
+    #   data = training_set,
+    #   kernel = 'adaptive',
+    #   bw = 8,
+    #   coords = as.matrix(training_coords),
+    #   method = 'grf',
+    #   trControl = ctrl,
+    #   metric = 'Rsquared'
+    # )
+    
+    # define r2 for the rest of the country
+    grf_cv_rsq <- mod4$results |>
+      as.data.frame() |>
+      select(Rsquared) |>
+      max() |>
+      round(2)
+    # calculate r2 for the identified gadm_1
+    test_set$pred4_gadm <- predict(mod4, test_set)
+    gadm_test_grf_rsq <- round(cor(test_set$farm_area_ha, test_set$pred4_gadm)^2, 2)
     
     # compiling data for the identified gadm_1
     one_row <- c(country = my_country, gadm_1 = my_gadm, 
                  rf_cv_rsq = rf_cv_rsq, gadm_test_rf_rsq = gadm_test_rf_rsq,
                  gam_cv_rsq = gam_cv_rsq, gadm_test_gam_rsq = gadm_test_gam_rsq,
-                 knn_cv_rsq = knn_cv_rsq, gadm_test_knn_rsq = gadm_test_knn_rsq)
+                 knn_cv_rsq = knn_cv_rsq, gadm_test_knn_rsq = gadm_test_knn_rsq,
+                 grf_cv_rsq = grf_cv_rsq, gadm_test_grf_rsq = gadm_test_grf_rsq)
     all_rows <- bind_rows(all_rows, one_row)
   }
   print(all_rows)
