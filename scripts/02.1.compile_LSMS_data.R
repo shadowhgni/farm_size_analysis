@@ -5,12 +5,32 @@
 # load packages
 require(tidyverse)
 # Set working directory
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
+
+# Set the appropriate JAVA environment
+Sys.setenv(JAVA_HOME='C:/Program Files/Eclipse Adoptium/jdk-21.0.3.9-hotspot')
+# devtools::install_github("ropensci/tabulizer") # Update package, skip if not connected. 
+
 # Clean environment
 rm(list=ls())
 
-# here are stored all the maps that will serve as predictors in the machine-learning (ML) models
+#############################################################################################################
+# Here are stored all the maps that will serve as predictors in the machine-learning (ML) models. Adjust accordingly
 input_path <- 'C:/Users/DHOUGNI/OneDrive - CIMMYT/Documents/Harare 2023/Spatial_data_repository'
+
+#############################################################################################################
+#define the region of interest: subSaharan Africa, excluding small islands 
+country <- geodata::world(path=input_path, resolution=5, level=0)
+isocodes <- geodata::country_codes()
+isocodes_ssa <- subset(isocodes, NAME=='Sudan' | UNREGION1=='Middle Africa' | UNREGION1=='Western Africa' | UNREGION1=='Southern Africa' | UNREGION1=='Eastern Africa')
+isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME!='Mauritius' & NAME!='Mayotte' & NAME!='RC)union' & NAME!='Saint Helena' & NAME!='SC#o TomC) and PrC-ncipe' & NAME!='Seychelles') # keep the mainland + Madagascar only, remove islands
+ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
+
+#############################################################################################################
+#define the countries for which LSMS data are available
+fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+
 
 #######################################################################
 # Get LSMS data from Ethiopia 2018
@@ -4695,6 +4715,218 @@ mli_raw <- inner_join(
          reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
 
 write_csv(mli_raw, file = paste0('../data/processed/', 'Mali_2017','_raw.csv'))
+#######################################################################
+# Get LSMS data from Ghana 2017
+
+# EA GPS in eaci_geovariables_2012
+# Sex given as    in eaci17_s01p1
+# plot details in     eaci17_s11bp1
+# crop code as  in    eaci17_s11cp1
+
+gha_fold1 <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep('Ghana_2012', dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
+gha_zip <- dir(gha_fold1, full.names = T)[grep('\\.zip$', dir(gha_fold1))]
+temporary_dir <- '../data/processed/temporary'
+if(dir.exists(temporary_dir)) unlink(temporary_dir, recursive = T)
+dir.create(temporary_dir)
+unzip(gha_zip, exdir = temporary_dir)
+gha_fold2 <- dir(temporary_dir, recursive = T, full.names = T)[grep('STATA\\.zip$', dir(temporary_dir, recursive = T))]
+unzip(gha_fold2, exdir = temporary_dir)
+
+# sapply(dir(temporary_dir, recursive = T,)[grep('STATA\\/SECTION 10\\/sec10_filters\\.dta', dir(temporary_dir, recursive = T), ignore.case = T)], function(x) {
+#   ea_data <- haven::read_dta(paste0(temporary_dir, '/', x))
+#   print(paste0('--------------- ', x, '--------------------------'))
+#   sapply(ea_data, function(y) print(attr(y, 'label')))
+#   View(ea_data)
+# 
+# })
+# 'STATA\\/AGGREGATES\\/GHA_2013_H\\.dta', 'STATA\\/AGGREGATES\\/00_GHA_BASICINFO.dta', 
+household_roster <- dir(temporary_dir, recursive = T,)[grep('STATA\\/PARTA\\/SEC1\\.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+plot_roster <- dir(temporary_dir, recursive = T,)[grep('STATA\\/PARTB\\/sec8b.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+ea_characteristics <- dir(temporary_dir, recursive = T,)[grep('STATA/PARTA/SECA.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+gha_codebook <- dir(temporary_dir, recursive = T)[grep('CODEBOOK\\.pdf$', dir(temporary_dir, recursive = T))]
+
+hh_data <-haven::read_dta(paste0(temporary_dir, '/', household_roster))
+plot_data <- haven::read_dta(paste0(temporary_dir, '/', plot_roster))
+ea_data <- haven::read_dta(paste0(temporary_dir, '/', ea_characteristics))
+gha_messy_codes <- tabulapdf::extract_tables(file = paste0(temporary_dir, '/', gha_codebook), method = 'lattice',
+                                             pages = 30:31, output = 'tibble', guess = T)
+gha_dist_01 <- gha_messy_codes[[1]] |>
+  as_tibble() |>
+  rename(districts_1 = ...2,
+         codes_1 = ...3,
+         districts_2 = ...6,
+         codes_2 = ...7) |>
+  select(contains('_')) |>
+  filter(!districts_1 == 'DISTRICT NAME', !is.na(districts_1)) 
+
+gha_dist_02 <- gha_messy_codes[[2]] |>
+  as_tibble() |>
+  rename(districts_1 = `DISTRICT NAME...2`,
+         codes_1 = `DISTRICT CODE...3`,
+         districts_2 = `DISTRICT CODE...6`,
+         codes_2 = ...7) |>
+  select(contains('_')) |>
+  filter(!is.na(districts_1))
+
+gha_districts_codes <- bind_rows(
+  gha_dist_01 |>
+    select(contains('_1')) |>
+    rename(district = districts_1, code = codes_1),
+  gha_dist_01 |>
+    select(contains('_2')) |>
+    rename(district = districts_2, code = codes_2),
+  gha_dist_02 |>
+    select(contains('_1')) |>
+    rename(district = districts_1, code = codes_1),
+  gha_dist_02 |>
+    select(contains('_2')) |>
+    rename(district = districts_2, code = codes_2)
+) |>
+  filter(!is.na(district)) |>
+  add_row(district = 'Nkwanta North', code = '0418') |>
+  add_row(district = 'Atiwa', code = '0517') |>
+  add_row(district = 'Bawku West', code = '0907') |>
+  mutate(region = case_when(
+    substr(code, 1, 2) == '01' ~ 'Western',
+    substr(code, 1, 2) == '02' ~ 'Central',
+    substr(code, 1, 2) == '03' ~ 'Greater Accra',
+    substr(code, 1, 2) == '04' ~ 'Volta',
+    substr(code, 1, 2) == '05' ~ 'Eastern',
+    substr(code, 1, 2) == '06' ~ 'Ashanti',
+    substr(code, 1, 2) == '07' ~ 'Ahafo',
+    substr(code, 1, 2) == '08' ~ 'Northern',
+    substr(code, 1, 2) == '09' ~ 'Upper East',
+    substr(code, 1, 2) == '10' ~ 'Upper West'
+  ));rm(gha_dist_01, gha_dist_02)
+
+gha_gadm2 <- terra::vect(paste0(input_path, '/gadm/Ghana/gadm/gadm41_GHA_2_pk.rds'))
+gha_gadm2 <- bind_cols(
+  terra::crds(terra::centroids(gha_gadm2)),
+  terra::as.data.frame(gha_gadm2) |>
+    select(starts_with('NAME_'))
+)
+
+gha_dist_01 <- gha_districts_codes |>
+  rename(NAME_2 = district) |>
+  inner_join(gha_gadm2)
+
+lsms <- gha_districts_codes |>
+  rename(NAME_1 = region, NAME_2 = district) |>
+  anti_join(gha_gadm2)
+
+gadm <- gha_gadm2 |>
+  anti_join(
+    gha_districts_codes |>
+      rename(NAME_2 = district)
+  )
+
+match_fun_2 <- function(a, b) {
+  stringdist::stringdist(a, b, method = 'jw') <= 0.25  # may need to adjust the method and threshold
+}
+gha_dist_02 <- fuzzyjoin::fuzzy_inner_join(
+  lsms, gadm, 
+  by = c('NAME_1', 'NAME_2'),
+  match_fun = match_fun_2
+) |> 
+  arrange(NAME_2.x, NAME_2.y)
+
+View(gha_dist_02 )
+gha_dist_02 <- gha_dist_02[-c(15, 16, 20, 21, 22, 36, 43, 44, 55, 56, 62, 66, 67, 80),]
+gha_dist_02 <- gha_dist_02 |>
+  distinct(code, .keep_all = T)
+
+gha_dist_01 <- gha_dist_01 |>
+  bind_rows(
+    gha_dist_02 |>
+      rename(NAME_1 = NAME_1.y, NAME_2 = NAME_2.y) |>
+      select(x, y, code, NAME_1, NAME_2)
+  ); rm(gha_dist_02)
+
+lsms <- gha_districts_codes |>
+  rename(NAME_1 = region, NAME_2 = district) |>
+  filter(!code %in% unique(gha_dist_01$code)) |>
+  arrange(NAME_2)
+
+other_names <- c('Atebubu', 'Bekwai', 'Berekum', 'Bunkpurugu', 'Dormaa',
+                 'Kintampo', 'Kwahu Afram Plains North', 'Pru', 
+                 'Sawla', 'Sefwi', 'Sene', 'Suhum', 'Sunyani')
+gadm <- gha_gadm2 |>
+  filter(grepl(paste0(other_names, collapse = '|'), NAME_2, ignore.case = T))
+
+gha_dist_03 <- fuzzyjoin::fuzzy_inner_join(
+  lsms, gadm, 
+  by = c('NAME_2'),
+  match_fun = match_fun_2
+) |> 
+  arrange(NAME_2.x, NAME_2.y)
+
+gha_dist_03 <- gha_dist_03[-c(6, 7),]
+gha_dist_03 <- gha_dist_03 |>
+  distinct(code, .keep_all = T)
+
+gha_dist_01 <- gha_dist_01 |>
+  bind_rows(
+    gha_dist_03 |>
+      rename(NAME_1 = NAME_1.y, NAME_2 = NAME_2.y) |>
+      select(x, y, code, NAME_1, NAME_2)
+  ); rm(gha_dist_03)
+# Add Accra Municipal Area (AMA)
+gha_dist_01 <- gha_dist_01 |>
+  add_row(
+    gha_gadm2 |> 
+      filter(NAME_2 == 'Accra'),
+    code = '0304' # A M A in LSMS codebook
+  ) |>
+  select(x, y, code, starts_with('NAME_')) |>
+  arrange(NAME_1, NAME_2)
+
+gha_raw <- hh_data |>
+  select(grappe, exploitation, s1q01) |>
+  filter(!is.na(s1q01)) |> # sex must be filled in
+  mutate(ea_id = as.character(grappe),
+         farm_id = as.character(paste0(sprintf('%04g', grappe), '_', sprintf('%04g', exploitation)))) |>
+  group_by(ea_id, farm_id) |>
+  summarise(hh_size = n()) |>
+  inner_join(
+    plot_data |>
+      select(grappe, exploitation, s11bq01, s11bq02, s11bq03, s11bq04, s11bq07, s11bq11a) |>
+      rename(field_id = s11bq01, plot_id = s11bq02,
+             reported_area = s11bq11a, measured_plot = s11bq04, 
+             measured_plot_area = s11bq07, crop_code = s11bq03) |>
+      mutate(farm_id = as.character(paste0(sprintf('%04g', grappe), '_', sprintf('%04g', exploitation))),
+             field_id = paste0(farm_id, field_id),
+             plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
+             plot_land_use = case_when(crop_code != 999 ~ 'CULTIVATED',
+                                       crop_code == 999 ~ 'Uncultivated',
+                                       .default = NA),
+             reported_area = case_when(reported_area == 999999 ~ NA,
+                                       reported_area == 99 ~ NA,
+                                       .default = reported_area),
+             report_unit = 'ha',
+             reported_area_ha = reported_area,
+             measured_plot = case_when(measured_plot == 1 ~ 'GPS-measured',
+                                       measured_plot == 2 ~ 'not measured',
+                                       .default = NA),
+             measured_plot_area_ha = round(measured_plot_area, 4)) |>
+      filter(plot_land_use == 'CULTIVATED') ) 
+
+ea_data <-ea_data |>
+  select(grappe, lon_dd_mod, lat_dd_mod) |>
+  rename(ea_id = grappe, x = lon_dd_mod, y = lat_dd_mod) |>
+  mutate(ea_id = as.character(ea_id))
+
+gha_raw <- inner_join(
+  gha_raw,
+  ea_data |>
+    mutate(country = 'Ghana',
+           year = 2012) )  |>
+  select(x, y, country, year, ea_id, farm_id, hh_size, field_id, plot_id,
+         reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
+
+write_csv(gha_raw, file = paste0('../data/processed/', 'Ghana_2012','_raw.csv'))
+
+
+
 unlink(temp_west_af, recursive = T)
 unlink(temporary_dir, recursive = T)
 ###########################################################################################

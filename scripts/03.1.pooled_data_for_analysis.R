@@ -1,7 +1,7 @@
 # Understanding and predicting the variability of farm size across SSA
 
 # Open the file from the folder and set working directory, using the here package
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # Clean environment
 rm(list=ls())
@@ -120,6 +120,7 @@ lsms$gadm_2 <- terra::extract(fourteen_count_distr[, 'NAME_2'], lsms)$NAME_2    
 lsms$gadm_3 <- terra::extract(fourteen_count_distr[, 'NAME_3'], lsms)$NAME_3                                 # create region names using the level 3 of GADM division
 lsms$gadm_4 <- terra::extract(fourteen_count_distr[, 'NAME_4'], lsms)$NAME_4                                 # create region names using the level 4 of GADM division
 lsms_01 <- lsms # backup the whole LSMS + Zambia spat vector
+terra::writeVector(lsms_01, '../data/processed/backup_untrimmed_lsms_01_africa.shp', overwrite = T)
 
 # Restrict Nigerian data to exclude Bauchi, Borno and Yobe from 2011 to 2015 (Boko Haram)
 lsms <- lsms [!lsms$gadm_1 %in% c('Bauchi', 'Borno', 'Yobe')]
@@ -136,10 +137,21 @@ lsms_per_region <- terra::as.data.frame(lsms) |>
             high_fence = quantile(farm_area_ha, 0.75) + 1.5 * IQR(farm_area_ha, na.rm = T) ) |>
   ungroup() |>
   arrange(desc(max))
+lsms_per_region <- terra::as.data.frame(lsms) |>
+  group_by(country, gadm_0, gadm_1) |>
+  summarize(n_farms_years = n(),
+            min  = min(farm_area_ha, na.rm = T), max = max(farm_area_ha, na.rm = T),
+            q_01 = quantile(farm_area_ha, 0.01), q_99 = quantile(farm_area_ha, 0.99),
+            q_05 = quantile(farm_area_ha, 0.05), q_95 = quantile(farm_area_ha, 0.95),
+            q_10 = quantile(farm_area_ha, 0.10), q_90 = quantile(farm_area_ha, 0.90),
+            low_fence = quantile(farm_area_ha, 0.25) - 1.5 * IQR(farm_area_ha, na.rm = T),
+            high_fence = quantile(farm_area_ha, 0.75) + 1.5 * IQR(farm_area_ha, na.rm = T) ) |>
+  ungroup() |>
+  arrange(desc(max))
 
 trim_1 <- inner_join(
   lsms_per_region |>
-    select(country, gadm_0, gadm_1, q_95),
+    select(country, gadm_0, gadm_1, q_95, q_99),
   cbind(
     terra::as.data.frame(lsms),
     terra::crds(lsms)
@@ -147,17 +159,20 @@ trim_1 <- inner_join(
 )
 
 trim_1 <- terra::vect(trim_1, geom = c('x', 'y'), crs = 'EPSG:4326')
-trim_1 <- subset(trim_1, trim_1$farm_area_ha <= trim_1$q_95 & trim_1$farm_area_ha > 0)
-trim_1[['q_95']] <- NULL
-lsms <- trim_1; rm(trim_1)
-lsms_03 <- lsms
+trim_1 <- subset(trim_1, trim_1$farm_area_ha > 0)
+trim_2 <- subset(trim_1, trim_1$farm_area_ha <= trim_1$q_99)
+trim_2[['q_99']] <- NULL
+trim_3 <- subset(trim_1, trim_1$farm_area_ha <= trim_1$q_95)
+trim_3[['q_95']] <- NULL
 
 # plot the LSMS + Zambia data points
+
 lsms_colour <- cbind(terra::as.data.frame(lsms), terra::crds(lsms)) |>
   group_by(x, y) |>
   summarize(nb_farms = n()) |>
   ungroup()
-pal <- colorRampPalette(c('turquoise1', 'blue4'))(max(lsms_colour$nb_farms))
+# pal <- colorRampPalette(c('turquoise1', 'blue4'))(max(lsms_colour$nb_farms))
+pal <- colorRampPalette(c('skyblue1', 'blue4'))(max(lsms_colour$nb_farms))
 ea_colours <- pal[lsms_colour$nb_farms]
 png('../output/maps/africa-lsms.png', units = 'in', width = 11, height = 5.5, res = 1000)
 par(mfrow = c(1, 2), mgp = c(2, 0.5, 0))
@@ -170,65 +185,80 @@ dev.off()
 # stack all the raster layers needed for analysis
 stacked <- c(stacked_00$cropland, stacked_00$cattle, stacked_00$pop, 
              stacked_00$cropland_per_capita,
-             stacked_00$sand, stacked_00$elevation, stacked_00$slope,
+             stacked_00$sand, stacked_00$slope,
              stacked_00$temperature, stacked_00$rainfall, stacked_00$maizeyield, 
-             stacked_00$market, stacked_00$gdp, stacked_00$wealth_index )  
+             stacked_00$market )  
 
 terra::writeRaster(stacked, '../data/processed/stacked_rasters_africa.tif', overwrite = T)
-terra::writeVector(lsms, '../data/processed/lsms_africa.shp', overwrite = T)
-terra::writeVector(lsms_01, '../data/processed/backup_untrimmed_lsms_01_africa.shp', overwrite = T)
+# terra::writeVector(lsms, '../data/processed/lsms_africa.shp', overwrite = T)
 
 # prepare LSMS dataset for RF analysis
-my_lsms <- cbind(data.frame(lsms), 
-                 lsms |> 
-                   terra::geom() |> 
-                   as.data.frame())
-my_lsms <- my_lsms[c('x', 'y', 'country', 'gadm_0', 'gadm_1', 'gadm_2', 'gadm_3', 'gadm_4', 'year', 
-                     'farm_id', 'farm_area_ha', 'hh_size')]
-my_lsms <- my_lsms |>
-  sf::st_as_sf(coords = c('x', 'y')) |>
-  sf::st_set_crs(4326)
-lsms_03 <- my_lsms # backup the dataset as SF object
-my_lsms <- data.frame(cbind(my_lsms, terra::extract(stacked, terra::vect(my_lsms))))
-terra::writeVector(terra::vect(lsms_03), '../data/processed/lsms_trimmed_africa.shp', overwrite = T)
+select_variables <- function(x){
+  lsms <- x
+  my_lsms <- cbind(
+    data.frame(lsms), 
+    lsms |> 
+      terra::geom() |> 
+      as.data.frame()
+  )
+  my_lsms <- my_lsms[c('x', 'y', 'country', 'gadm_0', 'gadm_1', 'gadm_2', 'gadm_3', 'gadm_4', 'year', 
+                       'farm_id', 'farm_area_ha', 'hh_size')]
+  my_lsms <- data.frame(cbind(my_lsms, terra::extract(stacked, my_lsms |> select(x, y), na.rm = T) )) 
+  lsms_03 <- my_lsms # backup the dataset as SF object
+  lsms_spatial <- my_lsms
+  return(lsms_spatial)
+}
+# my_lsms <- my_lsms |>
+#   sf::st_as_sf(coords = c('x', 'y')) |>
+#   sf::st_set_crs(4326)
+# my_lsms <- data.frame(cbind(my_lsms, terra::extract(stacked, terra::vect(my_lsms), na.rm = T))) 
 
-# merge data sets
-lsms_spatial <- my_lsms[c('farm_area_ha',
-                          'cropland', 'cattle', 'pop', 'cropland_per_capita',
-                          'sand', 'elevation', 'slope', 'temperature', 'rainfall',
-                          'maizeyield', 'market', 'gdp')] # wealth_index has too many NA
-lsms_spatial <- na.omit(lsms_spatial) 
+lsms_spatial <- select_variables(trim_1); print(nrow(lsms_spatial))
+      save(lsms_spatial, file='../data/processed/lsms_untrimmed_africa.rdata')
+lsms_spatial <- select_variables(trim_2); print(nrow(lsms_spatial))
+        save(lsms_spatial, file='../data/processed/lsms_trimmed_99th_africa.rdata')
+lsms_spatial <- select_variables(trim_3); print(nrow(lsms_spatial))
+        save(lsms_spatial, file='../data/processed/lsms_trimmed_95th_africa.rdata')
 
-# save(stacked, file='../data/processed/stacked_africa.Rdata')
+# terra::writeVector(terra::vect(lsms_03), '../data/processed/lsms_trimmed_africa.shp', overwrite = T)
+
+lsms_spatial <- lsms_spatial |>
+  select(x, y, farm_area_ha, cropland, cattle, pop,cropland_per_capita,
+         sand, slope, temperature, rainfall, maizeyield, market) |>
+  na.omit() 
+write.csv(lsms_spatial |> select(!c(x, y)), '../data/processed/lsms_spatial.csv', row.names = F)
+save(stacked, file='../data/processed/stacked_africa.Rdata')
 save(lsms_spatial, file='../data/processed/lsms_spatial_africa.Rdata')
-save(lsms_00, lsms_01, lsms_02, lsms_03, lsms_spatial, my_lsms, file='../data/processed/my_lsms_africa.Rdata') 
+save(lsms_00, lsms_01, lsms_02, # lsms_03, my_lsms,
+     lsms_spatial,  file='../data/processed/my_lsms_africa.Rdata') 
 
 # ------------------------------------------------------------------------------
-# per country
-per_country_data=function(my_country){
-  print(paste0('==========================', my_country, '======================='))
-  cty <- subset(ssa, ssa$GID_0==fourteen_country_codes[which(fourteen_countries == my_country)])
-  lsms_cty <- terra::crop(terra::vect(lsms_03), cty)
-  
-  stacked_cty <- terra::crop(stacked, cty)
-  terra::writeRaster(stacked_cty, paste0('../data/processed/stacked_cty_rasters_', my_country, '.tif'), overwrite = T)
-  
-  # prepare lsms_cty dataset for RF analysis
-  lsms_cty_final <- lsms_cty[c('farm_area_ha')] 
-  lsms_cty_final <- cbind(data.frame(lsms_cty_final), lsms_cty_final |> terra::geom() |> as.data.frame())
-  lsms_cty_final <- lsms_cty_final[c(1,4,5)]
-  lsms_cty_spatial <- lsms_cty_final %>%
-    sf::st_as_sf(coords = c('x', 'y')) %>%
-    sf::st_set_crs(4326)  
-  
-  # merge data sets
-  lsms_cty_spatial <- data.frame(cbind(lsms_cty_spatial, terra::extract(stacked_cty, terra::vect(lsms_cty_spatial))))
-  lsms_cty_spatial <- lsms_cty_spatial[c('farm_area_ha', 'cropland', 'cattle', 
-                                         'pop', 'cropland_per_capita', 
-                                         'sand', 'elevation', 'slope', 'temperature', 'rainfall', 
-                                         'market', 'maizeyield')] # gdp and wealth_index were removed
-  
-  save(stacked_cty, file=paste0('../data/processed/stacked_',my_country,'.Rdata'))
-  save(lsms_cty_spatial, file=paste0('../data/processed/lsms_cty_spatial_',my_country,'.Rdata'))
-}
-sapply(fourteen_countries, per_country_data)
+# # per country
+# per_country_data=function(my_country){
+#   print(paste0('==========================', my_country, '======================='))
+#   cty <- subset(ssa, ssa$GID_0==fourteen_country_codes[which(fourteen_countries == my_country)])
+#   lsms03 <- terra::vect(lsms_spatial, geom = c('x', 'y'))
+#   lsms_cty <- terra::crop(lsms_03, cty, mask = T)
+#   
+#   stacked_cty <- terra::crop(stacked, cty)
+#   terra::writeRaster(stacked_cty, paste0('../data/processed/stacked_cty_rasters_', my_country, '.tif'), overwrite = T)
+#   
+#   # prepare lsms_cty dataset for RF analysis
+#   lsms_cty_final <- lsms_cty[c('farm_area_ha')] 
+#   lsms_cty_final <- cbind(data.frame(lsms_cty_final), lsms_cty_final |> terra::geom() |> as.data.frame())
+#   lsms_cty_final <- lsms_cty_final[c(1,4,5)]
+#   lsms_cty_spatial <- lsms_cty_final %>%
+#     sf::st_as_sf(coords = c('x', 'y')) %>%
+#     sf::st_set_crs(4326)  
+#   
+#   # merge data sets
+#   lsms_cty_spatial <- data.frame(cbind(lsms_cty_spatial, terra::extract(stacked_cty, terra::vect(lsms_cty_spatial))))
+#   lsms_cty_spatial <- lsms_cty_spatial[c('farm_area_ha', 'cropland', 'cattle', 
+#                                          'pop', 'cropland_per_capita', 
+#                                          'sand', 'slope', 'temperature', 'rainfall', 
+#                                          'market', 'maizeyield')] # gdp and wealth_index were removed
+#   
+#   save(stacked_cty, file=paste0('../data/processed/stacked_',my_country,'.Rdata'))
+#   save(lsms_cty_spatial, file=paste0('../data/processed/lsms_cty_spatial_',my_country,'.Rdata'))
+# }
+# sapply(fourteen_countries, per_country_data)

@@ -50,7 +50,7 @@ tune_grid <- expand.grid(
 set.seed(2024) 
 seeds_list <- vector('list', length = 11) 
 for (i in 1:10) {
-  seeds_list[[i]] <- sample.int(10000, size = nrow(tune_grid))  # Random integers for each fold
+  seeds_list[[i]] <- sample.int(10000, size = nrow(tune_grid))
 }
 seeds_list[[11]] <- sample.int(10000, size = 1) 
 ctrl <- caret::trainControl(method = 'cv', number = 10, savePredictions = 'all', seeds = seeds_list)

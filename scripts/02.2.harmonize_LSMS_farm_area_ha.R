@@ -42,29 +42,29 @@ all_countries <- all_countries |>
   arrange(country, desc(year))
 
 ########################################################################
-# Check if there is need to adjust some plot area at country level
-pl <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
-  facet_wrap( ~ paste0(country, '_', year), scales = 'free') +
-  theme_classic()
-
-png('../data/processed/check_plot_size.png', height = 15, width = 20, units = 'cm', res = 600)
-pl
-ggsave('../data/processed/check_plot_size.png')
-dev.off()
-
-pp <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
-  lims(x = c(0, 30), y = c(0, 30)) +
-  facet_wrap( ~ paste0(country, '_', year) ) +
-  theme_classic()
-
-png('../data/processed/check_lsms_plot_size_2.png', height = 15, width = 20, units = 'cm', res = 600)
-pp
-ggsave('../data/processed/check_lsms_plot_size_2.png')
-dev.off()
+# # Check if there is need to adjust some plot area at country level
+# pl <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
+#   geom_point() +
+#   geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
+#   facet_wrap( ~ paste0(country, '_', year), scales = 'free') +
+#   theme_classic()
+# 
+# png('../data/processed/check_plot_size.png', height = 15, width = 20, units = 'cm', res = 600)
+# pl
+# ggsave('../data/processed/check_plot_size.png')
+# dev.off()
+# 
+# pp <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
+#   geom_point() +
+#   geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
+#   lims(x = c(0, 30), y = c(0, 30)) +
+#   facet_wrap( ~ paste0(country, '_', year) ) +
+#   theme_classic()
+# 
+# png('../data/processed/check_lsms_plot_size_2.png', height = 15, width = 20, units = 'cm', res = 600)
+# pp
+# ggsave('../data/processed/check_lsms_plot_size_2.png')
+# dev.off()
 # pp_check <- ggExtra::ggMarginal(pp, type = 'density', fill = 'grey90')
 ########################################################################
 # Correct measured plot areas 
@@ -81,26 +81,26 @@ all_lsms_raw_data <- all_lsms_raw_data |>
                                       .default = reported_area_ha)
          )
 
-pm <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
-  facet_wrap( ~ paste0(country, '_', year), scales = 'free') +
-  theme_classic()
-png('../data/processed/check_plot_size_after_correction.png', height = 15, width = 20, units = 'cm', res = 600)
-pm
-ggsave('../data/processed/check_plot_size_after_correction.png')
-dev.off()
+# pm <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
+#   geom_point() +
+#   geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
+#   facet_wrap( ~ paste0(country, '_', year), scales = 'free') +
+#   theme_classic()
+# png('../data/processed/check_plot_size_after_correction.png', height = 15, width = 20, units = 'cm', res = 600)
+# pm
+# ggsave('../data/processed/check_plot_size_after_correction.png')
+# dev.off()
 
-pn <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
-  lims(x = c(0, 30), y = c(0, 30)) +
-  facet_wrap( ~ paste0(country, '_', year), scales = 'free') +
-  theme_classic()
-png('../data/processed/check_plot_size_after_correction_2.png', height = 15, width = 20, units = 'cm', res = 600)
-pn
-ggsave('../data/processed/check_plot_size_after_correction_2.png')
-dev.off()
+# pn <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
+#   geom_point() +
+#   geom_abline(intercept = 0, slope = 1, linewidth = 0.8, colour = 'red') +
+#   lims(x = c(0, 30), y = c(0, 30)) +
+#   facet_wrap( ~ paste0(country, '_', year), scales = 'free') +
+#   theme_classic()
+# png('../data/processed/check_plot_size_after_correction_2.png', height = 15, width = 20, units = 'cm', res = 600)
+# pn
+# ggsave('../data/processed/check_plot_size_after_correction_2.png')
+# dev.off()
 ########################################################################
 # Calculate farm size, based on the plot size
 # First use the measured plot area, and if there is no measurement, use the reported area.
@@ -144,7 +144,17 @@ zam_raw <- zam |>
          ea_id = paste0(year, '_', prov, '_', dist, '_', cluster),
          farm_id = paste0(ea_id, '_', hh),
          farm_area_ha = round(cultland_ha, 4)) |>
-  select(x, y, country, year, farm_id, hh_size, farm_area_ha)
+  select(x, y, cluster, country, year, farm_id, hh_size, farm_area_ha)
+
+zam_raw <- zam_raw |>
+  select(!c(x, y)) |>
+  inner_join(
+    zam_raw |>
+      group_by(cluster) |>
+      summarize(x = mean(x, na.rm = T), y = mean(y, na.rm = T))
+  ) |>
+  select(!cluster) |>
+  ungroup()
 
 lsms_and_zambia <- bind_rows(
   lsms_farm_size |>
@@ -156,42 +166,42 @@ lsms_and_zambia <- bind_rows(
 # load farm size data as received from Joao, the table is named lsms_and_geodata
 load('../data/raw/received/lsms_and_geodata.rda')  
 
-pp_2021 <- ggplot(lsms_and_geodata, aes(farm_area_ha)) +
-  geom_histogram() +
-  lims(x = c(0, 25)) +
-  facet_wrap( ~ country_name, scales = 'free') +
-  theme_minimal()
-png('../data/processed/check_2021_LSMS.png', height = 15, width = 20, units = 'cm', res = 600)
-pp_2021
-ggsave('../data/processed/check_2021_LSMS.png')
-dev.off()
+# pp_2021 <- ggplot(lsms_and_geodata, aes(farm_area_ha)) +
+#   geom_histogram() +
+#   lims(x = c(0, 25)) +
+#   facet_wrap( ~ country_name, scales = 'free') +
+#   theme_minimal()
+# png('../data/processed/check_2021_LSMS.png', height = 15, width = 20, units = 'cm', res = 600)
+# pp_2021
+# ggsave('../data/processed/check_2021_LSMS.png')
+# dev.off()
 
-pp_2024 <- ggplot(lsms_and_zambia |>
-                    filter(country %in% c('Ethiopia', 'Malawi', 'Niger', 'Nigeria', 'Tanzania', 'Uganda')), 
-                  aes(farm_area_ha)) +
-  geom_histogram() +
-  lims(x = c(0, 25)) +
-  facet_wrap(country ~ year, scales = 'free') +
-  theme_minimal()
-png('../data/processed/check_2024_LSMS.png', height = 15, width = 20, units = 'cm', res = 600)
-pp_2024
-ggsave('../data/processed/check_2024_LSMS.png')
-dev.off()
+# pp_2024 <- ggplot(lsms_and_zambia |>
+#                     filter(country %in% c('Ethiopia', 'Malawi', 'Niger', 'Nigeria', 'Tanzania', 'Uganda')), 
+#                   aes(farm_area_ha)) +
+#   geom_histogram() +
+#   lims(x = c(0, 25)) +
+#   facet_wrap(country ~ year, scales = 'free') +
+#   theme_minimal()
+# png('../data/processed/check_2024_LSMS.png', height = 15, width = 20, units = 'cm', res = 600)
+# pp_2024
+# ggsave('../data/processed/check_2024_LSMS.png')
+# dev.off()
 
-pp_2021_vs_2024 <- patchwork::wrap_plots(pp_2021 + pp_2024 + patchwork::plot_layout (widths = c(1, 2)))
-png('../data/processed/check_2021_2024_LSMS.png', height = 15, width = 30, units = 'cm', res = 600)
-pp_2021_vs_2024
-ggsave('../data/processed/check_2021_2024_LSMS.png')
-dev.off()
+# pp_2021_vs_2024 <- patchwork::wrap_plots(pp_2021 + pp_2024 + patchwork::plot_layout (widths = c(1, 2)))
+# png('../data/processed/check_2021_2024_LSMS.png', height = 15, width = 30, units = 'cm', res = 600)
+# pp_2021_vs_2024
+# ggsave('../data/processed/check_2021_2024_LSMS.png')
+# dev.off()
 
-lsms_and_geodata |>
-  group_by(country_name) |>
-  summarize(med = median(farm_area_ha, na.rm = T), mean = mean(farm_area_ha, na.rm = T), sd = sd(farm_area_ha, na.rm = T))
-
-lsms_and_zambia |>
-  group_by(country, year) |>
-  summarize(med = median(farm_area_ha, na.rm = T), mean = mean(farm_area_ha, na.rm = T), sd = sd(farm_area_ha, na.rm = T)) |>
-  View()
+# lsms_and_geodata |>
+#   group_by(country_name) |>
+#   summarize(med = median(farm_area_ha, na.rm = T), mean = mean(farm_area_ha, na.rm = T), sd = sd(farm_area_ha, na.rm = T))
+# 
+# lsms_and_zambia |>
+#   group_by(country, year) |>
+#   summarize(med = median(farm_area_ha, na.rm = T), mean = mean(farm_area_ha, na.rm = T), sd = sd(farm_area_ha, na.rm = T)) |>
+#   View()
 
 write_csv(all_countries, file = '../data/processed/lsms_number_of_farms_all_inclusive.csv')
 write_csv(all_lsms_raw_data, file = '../data/processed/lsms_raw_data.csv')

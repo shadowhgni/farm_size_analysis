@@ -4,7 +4,7 @@
 # which is convenient for multiple projects.
 
 # Open the file from the folder and set working directory, using the here package
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # Clean environment
 rm(list=ls())
@@ -30,13 +30,13 @@ fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea
 fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 
 # clean previous maps from the output folder (in case there is an update)
-outdated_maps=c('../output/maps/africa-cattle.png', '../output/maps/africa-cropland.png',
-                '../output/maps/africa-cropland_2.png', '../output/maps/africa-elevation.png',
-                '../output/maps/africa-lsms.png', '../output/maps/africa-market.png',
-                '../output/maps/africa-population.png','../output/maps/africa-soil.png')
+outdated_maps <- c('../output/maps/africa-cattle.png', '../output/maps/africa-cropland.png',
+                   '../output/maps/africa-cropland_2.png', '../output/maps/africa-elevation.png',
+                   '../output/maps/africa-lsms.png', '../output/maps/africa-market.png',
+                   '../output/maps/africa-population.png','../output/maps/africa-soil.png')
 
-map_names=c('cattle', 'cropland', 'gdp', 'lsms', 'maizeyield', 'market',
-            'pop', 'poverty', 'rainfall', 'sand0_30', 'slope' )
+map_names <- c('cattle', 'cropland', 'gdp', 'lsms', 'maizeyield', 'market',
+               'pop', 'poverty', 'rainfall', 'sand0_30', 'slope' )
 for(i in fourteen_countries){
   for(j in map_names){
     country_map=paste0('../output/maps/', i, '-', j, '.png')
@@ -66,54 +66,129 @@ gadm_me <- function(cty){
 sapply(unique(ssa$NAME_0), gadm_me)
 # Make sure to manually change the folder name of Cote d'Ivoire and Guinea Bissau to the spelling in fourteen_countries
 
+# force terra to use disk-based processing and 80% of RAM (Use this if R crashes because of limited memory)
+# terra::terraOptions(memfrac = 0.8, todisk = T, verbose = F)
+
 # ------------------------------------------------------------------------------ 
-# Using cropland from SPAM; note that the raster is named geosurvey_ha
+# Using cropland from SPAM; note that the raster is named cropland_ha
 # spam
 all_spam_crops <- data.frame(geodata::spamCrops())[['code']]
-for(sv in c('harv_area', 'phys_area', 'prod', 'yield', 'val_prod')){  
-  print(sv)
-  variable <- lapply(
-    all_spam_crops, 
-    function(crop){
-      if(!dir.exists(paste0(input_path, '/spam/spam2017/', sv)))
-        create(paste0(input_path, '/spam/spam2017/', sv))
-      geodata::crop_spam(crop, sv, path = paste0(input_path, '/spam/spam2017/', sv), africa = T) # africa = T means 2017 layer (without Sudan)
-      if(!dir.exists(paste0(input_path, '/spam/spam2010/', sv)))
-        create(paste0(input_path, '/spam/spam2010/', sv))
-      geodata::crop_spam(crop, sv, path = paste0(input_path, '/spam/spam2010/', sv), africa = F) # africa = F means 2010 layer 
-    } 
-  )   
-  variable <- terra::rast(variable)
-  names(variable) <- all_spam_crops
-  variable <- terra::crop(variable, ssa, mask = T)
-  terra::writeRaster(variable, paste0(input_path, '/spam/', sv, '/all_spam_crops.tif'), overwrite = T)
-}
+# for(sv in c('harv_area', 'phys_area', 'prod', 'yield', 'val_prod')){  
+#   print(sv)
+#   variable <- lapply(
+#     all_spam_crops, 
+#     function(crop){
+#       if(!dir.exists(paste0(input_path, '/spam/spam2017/', sv)))
+#         dir.create(paste0(input_path, '/spam/spam2017/', sv))
+#       geodata::crop_spam(crop, sv, path = paste0(input_path, '/spam/spam2017/', sv), africa = T) # africa = T means 2017 layer (without Sudan)
+#       
+#       if(!dir.exists(paste0(input_path, '/spam/spam2010/', sv)))
+#         dir.create(paste0(input_path, '/spam/spam2010/', sv))
+#       geodata::crop_spam(crop, sv, path = paste0(input_path, '/spam/spam2010/', sv), africa = F) # africa = F means 2010 layer 
+#     } 
+#   )   
+#   variable <- terra::rast(variable)
+#   names(variable) <- all_spam_crops
+#   variable <- terra::crop(variable, ssa, mask = T)
+#   terra::writeRaster(variable, paste0(input_path, '/spam/', sv, '/all_spam_crops.tif'), overwrite = T)
+# }
+
+# Manually download SPAM2020 from https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/SWPENT 
+# place the .tif in the paste0(input_path, '/spam/spam2020/') folder
+each_2020_crop <- terra::rast(paste0(input_path, '/spam/spam2020/', dir(paste0(input_path,'/spam/spam2020'))[grep('_H_[A-Z]+_A.tif$', dir(paste0(input_path,'/spam/spam2020')))]) ) # _A is total area (rainfed  + irrigated)
+each_2020_crop <- terra::crop(each_2020_crop, ssa, mask = T)
+names(each_2020_crop) <- substr(names(each_2020_crop), 24, 27)
 
 each_2017_crop <- terra::rast(paste0(input_path, '/spam/spam2017/', dir(paste0(input_path,'/spam/spam2017'))[grep('_H_[A-Z]+_A.tif$', dir(paste0(input_path,'/spam/spam2017')))]) ) # _A is total area (rainfed  + irrigated)
 each_2017_crop <- terra::crop(each_2017_crop, ssa, mask = T)
 names(each_2017_crop) <- substr(names(each_2017_crop), 20, 23)
+
 # Pick Sudan data from SPAM 2010, and merge with SPAM 2017
 each_2010_crop <- terra::rast(paste0(input_path, '/spam/spam2010/', dir(paste0(input_path,'/spam/spam2010'))[grep('_H_[A-Z]+_A.tif$', dir(paste0(input_path,'/spam/spam2010')))]) )
 names(each_2010_crop) <- substr(names(each_2010_crop), 23, 26)
 sudan_mask <- terra::crop(each_2010_crop, subset(ssa, ssa$NAME_0 == 'Sudan'), mask = T)
-each_crop <- terra::merge(each_2017_crop, sudan_mask); rm(each_2010_crop, each_2017_crop)
+each_2017_crop <- terra::merge(each_2017_crop, sudan_mask)
 
-all_2017_crops <- terra::rast(paste0(input_path, '/spam/spam2017/', dir(paste0(input_path,'/spam/spam2017'))[grep('_H_[A-Z]+_A.tif$', dir(paste0(input_path,'/spam/spam2017')))]) ) # _A is total area (rainfed  + irrigated)
-all_2017_crops <- sum(all_2017_crops, na.rm = T)
-crop_mask <- all_2017_crops
-crop_mask <- terra::crop(crop_mask, ssa, mask =T)
+all_2020_crops <- sum(each_2020_crop, na.rm = T)
+all_2020_crops <- terra::crop(all_2020_crops, ssa, mask = T)
+all_2017_crops <- sum(each_2017_crop, na.rm = T)
+all_2017_crops <- terra::crop(all_2017_crops, ssa, mask = T)
+all_2010_crops <- sum(each_2010_crop, na.rm = T)
+all_2010_crops <- terra::crop(all_2010_crops, ssa, mask = T)
 
-all_2010_crops <- terra::rast(paste0(input_path, '/spam/spam2010/', dir(paste0(input_path,'/spam/spam2010'))[grep('_H_[A-Z]+_A.tif$', dir(paste0(input_path,'/spam/spam2010')))]) )
-all_2010_crops <- sum(all_2010_crops, na.rm = T)
-sudan_mask <- terra::crop(all_2010_crops, subset(ssa, ssa$NAME_0 == 'Sudan'), mask = T)
+terra::writeRaster(all_2020_crops, file = paste0(input_path, '/spam/spam2020_cropland_ssa.tif'), overwrite = T)
+terra::writeRaster(all_2017_crops, file = paste0(input_path, '/spam/spam2017_cropland_ssa.tif'), overwrite = T)
+terra::writeRaster(all_2010_crops, file = paste0(input_path, '/spam/spam2010_cropland_ssa.tif'), overwrite = T)
 
-geosurvey_ha <- terra::merge(crop_mask, sudan_mask)
-names(geosurvey_ha) <- 'cropland'
-terra::writeRaster(geosurvey_ha, file = paste0(input_path, '/spam/spam_cropland_ssa.tif'), overwrite = T)
+esa_cropland <- geodata::cropland(source = 'WorldCover', path = input_path)
+# esa_cropland <- terra::rast(paste0(input_path, '/landuse/landuse/WorldCover_cropland_30s.tif'))
+esa_cropland <- terra::crop(esa_cropland, ssa, mask = T)
+esa_cropland <- esa_cropland * terra::cellSize(esa_cropland, unit = 'ha')
+
+geosurvey_cropland <- geodata::cropland(source = 'QED', path = input_path)
+# geosurvey_cropland <- terra::rast(paste0(input_path, '/landuse/landuse/geosurvey_cropland.tif'))
+geosurvey_cropland <- terra::crop(geosurvey_cropland, ssa, mask = T)
+geosurvey_cropland <- geosurvey_cropland * terra::cellSize(geosurvey_cropland, unit = 'ha')
+
+potapov_cropland <- geodata::cropland(source = 'GLAD', year = 2019, path = input_path)
+# potapov_cropland <- terra::rast(paste0(input_path, '/landuse/landuse/glad_cropland_2019.tif'))
+potapov_cropland <- terra::crop(potapov_cropland, ssa, mask = T)
+potapov_cropland <- potapov_cropland * terra::cellSize(potapov_cropland, unit = 'ha')
+
+ssa_grid <- terra::rast(ssa, nrow = 20000, ncol = 20000)
+ssa_rast <- terra::rasterize(ssa, ssa_grid, field = 'NAME_0')
+ssa_rast <- terra::resample(ssa_rast, all_2010_crops)
+
+spam2010 <- c(ssa_rast, all_2010_crops)
+spam2017 <- c(ssa_rast, all_2017_crops)
+spam2020 <- c(ssa_rast, all_2020_crops)
+
+# compare cropland of top 10 countries, for different sources
+esa2 <- c(terra::resample(ssa_rast, esa_cropland), esa_cropland)
+esa2_df <- terra::as.data.frame(esa2)
+esa2_df |> group_by(NAME_0) |> summarize(cropland = sum(cropland, na.rm = T)) |> arrange(-cropland)
+
+potapov2 <- c(terra::resample(ssa_rast, potapov_cropland), potapov_cropland)
+potapov2_df <- terra::as.data.frame(potapov2)
+potapov2_df |> group_by(NAME_0) |> summarize(cropland = sum(crop_2019, na.rm = T)) |> arrange(-cropland)
+
+geosurvey2 <- c(terra::resample(ssa_rast, geosurvey_cropland), geosurvey_cropland)
+geosurvey2_df <- terra::as.data.frame(geosurvey2)
+geosurvey2_df |> group_by(NAME_0) |> summarize(cropland = sum(cropland, na.rm = T)) |> arrange(-cropland)
+
+terra::as.data.frame(spam2010) |> group_by(NAME_0) |> summarize(cropland = sum(sum, na.rm = T)) |> arrange(-cropland)
+terra::as.data.frame(spam2017) |> group_by(NAME_0) |> summarize(cropland = sum(sum, na.rm = T)) |> arrange(-cropland)
+terra::as.data.frame(spam2020) |> group_by(NAME_0) |> summarize(cropland = sum(sum, na.rm = T)) |> arrange(-cropland)
+# compare the total cropland in SSA
+sum(esa2_df$cropland, na.rm = T)
+sum(potapov2_df$crop_2019, na.rm = T)
+sum(geosurvey2_df$cropland, na.rm = T)
+sum(terra::as.data.frame(spam2010)$sum, na.rm = T)
+sum(terra::as.data.frame(spam2017)$sum, na.rm = T)
+sum(terra::as.data.frame(spam2020)$sum, na.rm = T)
+# esa_croland is preferred because of highest spatial resolution of Sentinel2
+# potapov seems to underestimate total cropland, spam2017 seems to overestimate total cropland
+# cropland_ha <- terra::mean(
+#   terra::aggregate(esa_cropland, 10, fun = sum, na.rm = T),
+#   terra::aggregate(spam2017, 10, fun = sum, na.rm = T),
+#   terra::aggregate(geosurvey_cropland, 10, fun = sum, na.rm = T),
+#   terra::aggregate(potapov_cropland, 10, fun = sum, na.rm = T)
+# )
+esa_cropland <- terra::aggregate(esa_cropland, 10, fun = 'sum', na.rm = T)
+potapov_cropland <- terra::aggregate(potapov_cropland, 10, fun = 'sum', na.rm = T)
+terra::ext(esa_cropland) <- terra::ext(potapov_cropland) <- terra::ext(all_2017_crops) <- floor(terra::ext(esa_cropland))
+cropland_ha <- c(all_2017_crops, 
+                 terra::resample(esa_cropland, all_2017_crops), 
+                 terra::resample(potapov_cropland, all_2017_crops))
+
+cropland_ha <- terra::mean(cropland_ha, na.rm = T)
+cropland_ha[cropland_ha$mean == 0] <- NA
+names(cropland_ha) <- 'cropland'
+terra::writeRaster(cropland_ha, file = paste0(input_path, '/spam/cropland_ssa.tif'), overwrite = T)
 
 png("../output/maps/africa-cropland.png", units = "in", width = 5.5, height = 5.5, res = 1000)
 terra::plot(ssa, col = 'azure', main = 'Cropland (ha)', panel.first = grid(col = "gray", lty = "solid"), pax = list(cex.axis = 1.4))
-terra::plot(geosurvey_ha, cex = 1.2, axes = F, add = T, plg = list(loc  =  "bottom"))
+terra::plot(cropland_ha, cex = 1.2, axes = F, add = T, plg = list(loc  =  "bottom"))
 terra::plot(ssa, axes = F, add = T)
 dev.off()
 
@@ -124,11 +199,10 @@ dev.off()
 if(!dir.exists(paste0(input_path, '/cattle-density')))
   dir.create(paste0(input_path, '/cattle-density'))
 cattle <- terra::rast(paste0(input_path,'/cattle-density/5_Ct_2010_DA.tif') )
-cattle <- terra::crop(cattle, ssa, mask = T)
-cattle <- terra::resample(cattle, geosurvey_ha)
+cattle <- terra::mask(cattle, ssa)
+cattle <- terra::resample(cattle, cropland_ha)
 names(cattle) <- 'cattle'
 terra::writeRaster(cattle, paste0(input_path, '/cattle-density/2010_cattle_density_ssa.tif'), overwrite = T)
-
 
 # ------------------------------------------------------------------------------
 # Population density
@@ -137,15 +211,14 @@ if(!dir.exists(paste0(input_path, '/population')))
   dir.create(paste0(input_path, '/population'))
 pop <- geodata::population(2020, 0.5, path = input_path)
 pop <- terra::rast(paste0(input_path,'/population/pop/gpw_v4_population_density_rev11_2020_30s.tif') )
-pop <- terra::crop(pop, ssa, mask = T)
-pop <- terra::resample(pop, geosurvey_ha)
+pop <- terra::mask(pop, ssa)
+pop <- terra::resample(pop, cropland_ha)
 names(pop) <- 'pop'
 terra::writeRaster(pop, paste0(input_path, '/population/2020_population_density_ssa.tif'), overwrite = T)
 
-
 # ------------------------------------------------------------------------------
 # Create a raster for cropland per capita
-cropland_per_capita <- geosurvey_ha / pop
+cropland_per_capita <- cropland_ha / pop
 cropland_per_capita[is.infinite(cropland_per_capita)] <- NA
 names(cropland_per_capita) <- 'cropland_per_capita'
 terra::writeRaster(cropland_per_capita, paste0(input_path, '/spam/cropland_per_capita_ssa.tif'), overwrite = T)
@@ -162,8 +235,8 @@ sand05 <- terra::rast(paste0(input_path,'/soil_world/sand_0-5cm_mean_30s.tif') )
 sand15 <- terra::rast(paste0(input_path,'/soil_world/sand_5-15cm_mean_30s.tif') )
 sand30 <- terra::rast(paste0(input_path,'/soil_world/sand_15-30cm_mean_30s.tif') )
 sand0_30 <- (5*sand05 + 10*sand15 + 15*sand30)/30  # finish with 5*sand30 if 0-20cm is preferred over 0-30cm
-sand0_30 <- terra::crop(sand0_30, ssa, mask = T)
-sand0_30 <- terra::resample(sand0_30, geosurvey_ha)
+sand0_30 <- terra::mask(sand0_30, ssa)
+sand0_30 <- terra::resample(sand0_30, cropland_ha)
 names(sand0_30) <- 'sand'
 terra::writeRaster(sand0_30, paste0(input_path, '/soil_world/sand_content_0_30cm_ssa.tif'), overwrite = T)
 
@@ -172,6 +245,7 @@ terra::plot(ssa, col = 'azure', main = 'Texture (% sand)', panel.first = grid(co
 terra::plot(sand0_30, cex = 1.2, axes = F, add = T, plg = list(loc  =  "bottom"))
 terra::plot(ssa, axes = F, add = T)
 dev.off()
+
 # ------------------------------------------------------------------------------
 # Elevation slope
 # create a sub-folder for elevation to store the .tif file 
@@ -179,8 +253,8 @@ if(!dir.exists(paste0(input_path, '/wc2.1_30s')))
   dir.create(paste0(input_path, '/wc2.1_30s'))
 elevation <- geodata::elevation_global(0.5, path = input_path)
 elevation <- terra::rast(paste0(input_path,'/wc2.1_30s/wc2.1_30s_elev.tif')) # elevation map at 30 sec resolution
-elevation <- terra::crop(elevation, ssa, mask = T)
-elevation <- terra::resample(elevation, geosurvey_ha)
+elevation <- terra::mask(elevation, ssa)
+elevation <- terra::resample(elevation, cropland_ha)
 names(elevation) <- 'elevation'
 terra::writeRaster(elevation, paste0(input_path, '/wc2.1_30s/elevation_ssa.tif'), overwrite = T)
 
@@ -191,8 +265,8 @@ terra::plot(ssa, axes = F, add = T)
 dev.off()
 
 slope <- terra::terrain(elevation, 'slope', unit="radians", neighbors=8)
-slope <- terra::crop(slope, ssa, mask = T)
-slope <- terra::resample(slope, geosurvey_ha)
+slope <- terra::mask(slope, ssa)
+slope <- terra::resample(slope, cropland_ha)
 names(slope) <- 'slope'
 terra::writeRaster(slope, paste0(input_path, '/wc2.1_30s/terrain_slope_ssa.tif'), overwrite = T)
 
@@ -201,6 +275,7 @@ terra::plot(ssa, col = 'azure', main = 'Terrain slope map (m.a.s.l)', panel.firs
 terra::plot(slope, cex = 1.2, axes = F, add = T, plg = list(loc  =  "bottom"))
 terra::plot(ssa, axes = F, add = T)
 dev.off()
+
 # ------------------------------------------------------------------------------
 # Annual average temperatures from WorldClim
 # create a sub-folder for temperatures to store the .tif file
@@ -209,12 +284,13 @@ if(!dir.exists(paste0(input_path, '/temperature')))
 # temperature <- geodata::worldclim_global('tavg', 0.5, path = input_path) #if it fails, download manually
 temperature <- c(sapply(isocodes_ssa$ISO3, function(x) geodata::worldclim_country(x, 'tavg', path = input_path)))
 
-temp0 <- terra::resample(terra::rast(), geosurvey_ha)
+temp0 <- terra::resample(terra::rast(), cropland_ha)
 temperature <- for(i in isocodes_ssa$ISO3){
-  temp1 <- terra::resample(terra::mean(temperature[[i]], na.rm = T), geosurvey_ha)
+  temp1 <- terra::resample(terra::mean(temperature[[i]], na.rm = T), cropland_ha)
   temp0 <- terra::merge(temp0, temp1)
 }
-temperature <- terra::crop(temp0, ssa, mask = T)
+temperature <- terra::mask(temp0, ssa)
+terra::ext(temperature) <- terra::ext(cropland_ha)
 names(temperature) <- 'temperature'
 terra::writeRaster(temperature, paste0(input_path, '/temperature/avg_temperature_ssa.tif'), overwrite = T)
 
@@ -232,15 +308,15 @@ if(!dir.exists(paste0(input_path, '/travel')))
 market <- geodata::travel_time(to = 'city', size = 6, up = T, path = input_path) #if it fails, download manually
 
 market <- terra::rast(paste0(input_path,'/travel/travel_time_to_cities_6.tif')) #travel time to the nearest city 6 is 50.000
-market <- terra::crop(market, ssa, mask = T)
-market <- terra::resample(market, geosurvey_ha)
+market <- terra::mask(market, ssa)
+market <- terra::resample(market, cropland_ha)
 names(market) <- 'market'
 terra::writeRaster(market, paste0(input_path, '/travel/travel_time_to_cities_6.tif'), overwrite = T)
 
 png("../output/maps/africa-market.png", units = "in", width = 5.5, height = 5.5, res = 1000)
 terra::plot(ssa, col = 'azure', main = 'Travel time to the nearest city (min)', panel.first = grid(col = "gray", lty = "solid"), pax = list(cex.axis = 1.4))
 terra::plot(market, cex = 1.2, axes = F, add = T, plg = list(loc = "bottom"))
-terra::plot(cty, axes = F, add = T)
+terra::plot(ssa, axes = F, add = T)
 dev.off()
 
 # ------------------------------------------------------------------------------
@@ -248,8 +324,8 @@ dev.off()
 # It summarizes annual average rainfall from 1981 to 2023
 
 rainfall <- terra::rast(paste0(input_path,'/rainfall/rainfall_yearly/#_long_term_rainfall_avg.tif')) 
-rainfall <- terra::crop(rainfall, ssa, mask = T)
-rainfall <- terra::resample(rainfall, geosurvey_ha)
+rainfall <- terra::mask(rainfall, ssa)
+rainfall <- terra::resample(rainfall, cropland_ha)
 names(rainfall) <- 'rainfall'
 terra::writeRaster(rainfall, paste0(input_path, '/rainfall/rainfall_ssa.tif'), overwrite = T)
 
@@ -258,6 +334,7 @@ terra::plot(ssa, col = 'azure', main = 'Annual rainfall (mm)', panel.first = gri
 terra::plot(rainfall, cex = 1.2, axes = F, add = T, plg = list(loc = "bottom"))
 terra::plot(ssa, axes = F, add = T)
 dev.off()
+
 # ------------------------------------------------------------------------------
 # Climatic potential for agricultural production (maize) from  Bonilla-Cedrez et al, 2021
 # create a sub-folder for water-limited yield potential to store the .tif file
@@ -267,15 +344,15 @@ if(!dir.exists(paste0(input_path, '/maize_water_lim_yield_SSA')))
 # Manually download the file and store in paste0(input_path, '/maize_water_lim_yield_SSA')
 maizeyield <- terra::rast(paste0(input_path,'/maize_water_lim_yield_SSA/watlimsummary.tif')) # this has 3 layers
 maizeyield <- maizeyield[[2]] # extract only the median
-maizeyield <- terra::crop(maizeyield, ssa, mask = T)
-maizeyield <- terra::resample(maizeyield, geosurvey_ha)
+maizeyield <- terra::mask(maizeyield, ssa)
+maizeyield <- terra::resample(maizeyield, cropland_ha)
 names(maizeyield) <- 'maizeyield'
 terra::writeRaster(maizeyield, paste0(input_path, '/maize_water_lim_yield_SSA/maize_yield_ssa.tif'), overwrite = T)
 
 png("../output/maps/africa-maizeyield.png", units = "in", width = 5.5, height = 5.5, res = 1000)
 terra::plot(ssa, col = 'azure', main = 'Water-limited maize yield (kg/ha)', panel.first = grid(col = "gray", lty = "solid"), pax = list(cex.axis = 1.4))
 terra::plot(maizeyield, cex = 1.2, axes = F, add = T, plg = list(loc = "bottom"))
-terra::plot(cty, axes = F, add = T)
+terra::plot(ssa, axes = F, add = T)
 dev.off()
 
 # ------------------------------------------------------------------------------
@@ -301,13 +378,13 @@ gdp_vect$NAME_0 <- gdp_ssa$NAME_0
 gdp_vect$GID_0 <- gdp_ssa$GID_0
 gdp_grid <- terra::rast(gdp_vect, nrow = 1000, ncol = 1000)
 gdp <- terra::rasterize(gdp_vect, gdp_grid, field = 'gdp')
-gdp <- terra::resample(gdp, geosurvey_ha)
+gdp <- terra::resample(gdp, cropland_ha)
 names(gdp) <- 'gdp'
 terra::writeRaster(gdp, paste0(input_path, '/FAO-GDP/gdp_ssa.tif'), overwrite = T)
 
 png("../output/maps/africa-gdp.png", units = "in", width = 5.5, height = 5.5, res = 1000)
 terra::plot(ssa, col = 'azure', main = 'Gross Domestic Product per country, $', panel.first = grid(col = "gray", lty = "solid"), pax = list(cex.axis = 1.4))
-terra::plot(maizeyield, cex = 1.2, axes = F, add = T, plg = list(loc = "bottom"))
+terra::plot(gdp, cex = 1.2, axes = F, add = T, plg = list(loc = "bottom"))
 dev.off()
 # ------------------------------------------------------------------------------
 # Poverty index from https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/5OGWYM
@@ -329,9 +406,9 @@ wealth_index_list <- lapply(wealth_index_zip_list, function(x){
 wealth_index_shp <- unlist(wealth_index_list)[grep('_estimated_wealth_index\\.shp$', unlist(wealth_index_list))]
 wealth_index_rast <- sapply(wealth_index_shp, function(x) {
   empty_rast <- terra::rast(terra::vect(x), res = 0.01)
-  prob_poor <- terra::resample(terra::rasterize(terra::vect(x), empty_rast, field = 'img_prob_p'), geosurvey_ha)
+  prob_poor <- terra::resample(terra::rasterize(terra::vect(x), empty_rast, field = 'img_prob_p'), cropland_ha)
   names(prob_poor) <- 'prob_poor'
-  wealth_index <- terra::resample(terra::rasterize(terra::vect(x), empty_rast, field = 'img_prob_p'), geosurvey_ha)
+  wealth_index <- terra::resample(terra::rasterize(terra::vect(x), empty_rast, field = 'img_prob_p'), cropland_ha)
   names(wealth_index) <- 'wealth_index'
   cty_name <- unique(terra::vect(x)$country_na)
   terra::writeRaster(c(prob_poor, wealth_index), paste0(temporary_dir, '/final_rast_',cty_name, '.tif'), overwrite = T)
@@ -340,17 +417,17 @@ wealth_index_ssa <- Sys.glob(paste0(temporary_dir, '/final_rast*.tif'))
 wealth <- terra::rast()
 for(i in sort(wealth_index_ssa)) {
   print(i)
-  wealth <- terra::merge(terra::resample(wealth_index_rast, geosurvey_ha), terra::rast(i))
+  wealth <- terra::merge(terra::resample(wealth, cropland_ha), terra::rast(i))
 }
 names(wealth) <- c('prob_poor', 'wealth_index')
 unlink(temporary_dir, recursive = T)
 terra::writeRaster(wealth, paste0(input_path, '/poverty/wealth_ssa.tif'), overwrite = T)
 # ------------------------------------------------------------------------------
 # the inital stack of layers
-stacked_00 <- c(geosurvey_ha, cattle, pop, cropland_per_capita, 
+stacked_00 <- c(cropland_ha, cattle, pop, cropland_per_capita, 
                 sand0_30, elevation, slope, temperature, rainfall,
                 market, maizeyield, gdp, wealth)
-terra::writeRaster(stacked_00, '../data/processed/all_predictorss.tif', overwrite = T)
+terra::writeRaster(stacked_00, '../data/processed/all_predictors.tif', overwrite = T)
 # ------------------------------------------------------------------------------
 # The following layers will serve for post-processing, namely masking out areas where farm size will not be predicted
 # the first is to mask out forest areas, the second for drylands (receiving less than 200 mm/year)
@@ -364,8 +441,6 @@ forests <- terra::ifel(forests, NA, 1)
 mask_forest_ssa <- terra::crop(forests, ssa)
 
 # Mask out drylands
-drylands <- terra::ifel(stacked$rainfall < 200, NA, 1)
-# # force terra to use disk-based processing and 50% of RAM (Use this if R crashes because of limited memory)
-# terra::terraOptions(memfrac = 0.5)
+drylands <- terra::ifel(stacked_00$rainfall < 200, NA, 1)
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------

@@ -44,16 +44,22 @@ tps_model <- list(
   prob = NULL
 )
 # Prepare data: load lsms data as my_lsms (lsms with geometry as data.frame)
-load('../data/processed/lsms_spatial_raw.rdata') # this was retrieved from '02.customize_spatial_data.r'
+load('../data/processed/lsms_trimmed_95th_africa.rdata') # this was retrieved from '03.1.pooled_data_for_analysis.r'
 
-# Using a training set and a test set to evaluate model performance
+# keep only variables needed in the models
+lsms_spatial <- lsms_spatial |>
+  select(x, y, country, farm_area_ha, cropland, cattle, pop, cropland_per_capita,
+         sand, slope, temperature, rainfall, maizeyield, market) |>
+  na.omit() 
+
+# Using a training set (all countries minus one) and a test set (excluded country) to evaluate model performance
 compare_country_models <- function(my_country){
   set.seed(2024) # just for reproducibility!
   # caret control parms
   ctrl <- caret::trainControl(method = "cv", number = 10, verboseIter = F)
   
   print(paste0('--------------- Thin plate spline in ', my_country, '-------------'))
-  my_lsms_cty <- lsms_spatial_raw |>
+  my_lsms_cty <- lsms_spatial |>
     filter(country == my_country) |>
     select(x, y,                                                                              # omit country_name, region, and farm_id
            cropland, cattle, pop, cropland_per_capita,
@@ -61,17 +67,16 @@ compare_country_models <- function(my_country){
            market, maizeyield, farm_area_ha) |>     # maize_yield removed  for colinearity issue in TPS_covariates # omit GDP because it is not relevant at country-level
     na.omit()
   
-  #training - test split (70-30 rule)
+  #training - test split (70-30 rule), but I decided to go for 10-fold CV instead
   training_set_xy <- my_lsms_cty |>  
     sample_n(round(0.7 * nrow(my_lsms_cty)) )
   test_set_xy <- my_lsms_cty |>
     anti_join(training_set_xy)
   
-  # Thin plate spline (only the coordinates, then coordinates and  covariates)
-  
+  # Thin plate spline (only the coordinates, (then coordinates and  covariates => failed))
   tps_country_model_xy <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(farm_area_ha, x, y),
     method = tps_model,
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -79,45 +84,17 @@ compare_country_models <- function(my_country){
     metric = 'Rsquared'
   )
   
-  # print R2, first for the 10-fold CV, then for the 70-30 split # I don't know what to present
+  # print R2
   print(tps_country_model_xy)
   my_grid <- with(test_set_xy, cbind(x, y)) |> as.matrix()                      # Construct a grid over which prediction will be made:do use the test set!
   test_set_xy$pred_tps_xy  <- as.numeric(predict(tps_country_model_xy, my_grid))# assign to the new column of test_set the prediction made over the grid
   rsq_tps_xy <- with(test_set_xy, round(cor(farm_area_ha, pred_tps_xy)^2, 2))   # Get the r2
-  
+  print(paste0('calculated_r2 = ', rsq_tps_xy))
+  rsq_tps_xy <- round(mean(tps_country_model_xy$results$Rsquared, na.rm = T), 2)
   print(paste0('TPS_rsq_without_covariate = ', round(rsq_tps_xy, 2)))
+  rsq_SD_tps_xy <- round(sd(tps_country_model_xy$results$Rsquared, na.rm = T), 2)
+  print(rsq_SD_tps_xy)
   
-  # plot TPS inpterpolation, but not for Zambia (computational power is a constraint)
-  if(my_country != 'Zambia') {
-    P01 <- ggplot(test_set_xy, aes(farm_area_ha, pred_tps_xy)) +
-      geom_point() +
-      geom_abline(intercept = 0, slope = 1, colour  = 'red4', linewidth =0.8) +
-      labs(title = my_country) +
-      annotate('text', x = 10, y = 13, label = bquote(R^2== .(rsq_tps_xy)) ) +
-      theme_minimal()
-    
-    # Construct a country grid over which prediction will be made
-    cty_vect <- subset(ssa, ssa$GID_0 == fourteen_country_codes[which(fourteen_countries == my_country)])
-    cty_grid <- terra::rast(cty_vect, nrow = 100, ncol = 100, nlyrs = 1)
-    cty_rast <- terra::rasterize(cty_vect, cty_grid)
-    cty_coords <- terra::xyFromCell(cty_rast, cell = terra::cells(cty_rast))
-    
-    # Predict farm sizes over the country grid and map it : do not use the training or test set only, but both
-    # the basic plot (true interpolation)
-    cty_fit <- fields::Tps(cbind(my_lsms_cty$x, my_lsms_cty$y),
-                           my_lsms_cty$farm_area_ha, lon.lat = T)
-    cty_rast2 <- terra::interpolate(terra::rast(cty_rast), cty_fit)
-    cty_rast2 <- terra::mask(cty_rast2, cty_rast)
-    cty_rast2[cty_rast2 <= 0] <- NA
-    png(paste0('../output/maps/ML_model_comparison_', my_country, '_Tps_xy.png'), units="in", width=5.5, height=5.5, res=1000)
-    M01 <- {
-      terra::plot(cty_vect, main = paste0(my_country, ' - Tps_xy only'))
-      terra::plot(cty_rast2, col = terrain.colors(100), add = T)
-    }
-    dev.off()
-  } else {
-    print(' The Zambian TPS would take too long to run.')
-  }
   
   # Thin plate spline (with covariates)
   # tps_country_model_xyz <- fields::Tps(
@@ -125,28 +102,45 @@ compare_country_models <- function(my_country){
   #   training_set_xy[, 'farm_area_ha'],
   #   Z = as.matrix(training_set_xy[, c('cropland', 'cattle', 'population', 'sand', 'elevation',
   #                                     'market', 'rainfall', 'maizeyield')]), lon.lat = T )
-  tps_country_model_xyz <- caret::train(
-    farm_area_ha ~ .,
-    data = training_set_xy,
-    method = tps_model,
-    preProcess = c('center', 'scale', 'spatialSign'),
-    trControl = ctrl,
-    metric = 'Rsquared'
-  )
+  
+  # The following model can be fitted, 
+  tps_country_model_xyz <- fields::Tps(
+    with(my_lsms_cty, cbind(x, y)),
+    my_lsms_cty[, 'farm_area_ha'],
+    Z = as.matrix(my_lsms_cty[, c('cropland', 'cattle', 'pop', 'cropland_per_capita',
+                                  'sand', 'slope', 'temperature',
+                                  'rainfall', 'market', 'maizeyield')]), lon.lat = T )
+  
+  # The following model completely failed, I don't know why!
+  # tps_country_model_xyz <- caret::train(
+  #   farm_area_ha ~ .,
+  #   data = my_lsms_cty,
+  #   method = tps_model,
+  #   preProcess = c('center', 'scale', 'spatialSign'),
+  #   trControl = ctrl,
+  #   metric = 'Rsquared'
+  # )
   # Print the R2 for 10-fold CV, and then for the 70-30 split
   print(tps_country_model_xyz)
   test_set_xy$pred_tps_xyz <- predict(tps_country_model_xyz,
-                                      as.matrix(test_set_xy) )
-  rsq_tps_xyz <- with(test_set_xy, round(cor(farm_area_ha, pred_tps_xyz)^2, 2)) 
+                                      as.matrix(test_set_xy[, c('x', 'y')]), 
+                                      Z = as.matrix(test_set_xy[, c('cropland', 'cattle', 'pop', 'cropland_per_capita',
+                                                                    'sand', 'slope', 'temperature',
+                                                                    'rainfall', 'market', 'maizeyield')]))
+  rsq_tps_xyz <- with(test_set_xy, round(cor(farm_area_ha, pred_tps_xyz)^2, 2))
+  print(paste0('calculated_70-30_r2 = ', rsq_tps_xyz))
+  rsq_tps_xyz <- round(mean(tps_country_model_xyz$results$Rsquared, na.rm = T), 2)
+  print(paste0('CV_r2 = ', rsq_tps_xyz))
   print(paste0('TPS_rsq_with_covariate = ', round(rsq_tps_xyz, 2)))
+  rsq_SD_tps_xyz <- round(sd(tps_country_model_xyz$results$Rsquared, na.rm = T), 2)
+  print(rsq_SD_tps_xyz)
   
   # Gradient boosting machines (only the covariates)
   # gbm_country_model <- gbm::gbm(farm_area_ha ~ ., data = training_set_xy |> select(!c(x, y)),
   #                               n.trees = 1500, cv.folds = 5) # removing n.trees gives an optimal nb of iterations around 100 (using gbm::perf)
-
   gbm_country_model <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(!c(x, y)),
     method = 'xgbTree',
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -159,7 +153,11 @@ compare_country_models <- function(my_country){
   # additionally print GBM performances with 2 different  methods
   # gbm::gbm.perf(gbm_country_model, method = 'OOB')
   # gbm::gbm.perf(gbm_country_model, method = 'cv')
+  print(paste0('rsq_calculated_gbm = ', round(rsq_gbm, 2)))
+  rsq_gbm <- round(mean(gbm_country_model$results$Rsquared), 2)
   print(paste0('rsq_gbm = ', round(rsq_gbm, 2)))
+  rsq_SD_gbm <- round(sd(gbm_country_model$results$Rsquared), 2)
+  print(rsq_SD_gbm)
   P04 <- ggplot(test_set_xy, aes(farm_area_ha, pred_gbm)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -173,7 +171,7 @@ compare_country_models <- function(my_country){
   #                                  n.trees = 1500, cv.folds = 5) # removing n.trees gives an optimal nb of iterations around 100 (using gbm::perf)
   gbm_country_model_xy <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(farm_area_ha, x, y),
     method = 'xgbTree',
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -183,10 +181,11 @@ compare_country_models <- function(my_country){
   print(gbm_country_model_xy)
   test_set_xy$pred_gbm_xy <- as.numeric(predict(gbm_country_model_xy, test_set_xy)  )
   rsq_gbm_xy <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_gbm_xy)^2, 2)
-  # additionally print GBM performances with 2 different  methods
-  # print(gbm::gbm.perf(gbm_country_model_xy, method = 'OOB'))
-  # print(gbm::gbm.perf(gbm_country_model_xy, method = 'cv'))
-  print(paste0('rsq_gbm_xy = ', round(rsq_gbm_xy, 2)))
+  print(paste0('rsq_calculated_gbm_xy = ', round(rsq_gbm_xy, 2)))
+  rsq_gbm_xy <- round(mean(gbm_country_model_xy$results$Rsquared), 2)
+  print(paste0('rsq_gbm_xy = ', round(rsq_gbm, 2)))
+  rsq_SD_gbm_xy <- round(sd(gbm_country_model_xy$results$Rsquared), 2)
+  print(rsq_SD_gbm_xy)
   P05 <- ggplot(test_set_xy, aes(farm_area_ha, pred_gbm_xy)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -200,7 +199,7 @@ compare_country_models <- function(my_country){
   #                                  n.trees = 1500, cv.folds = 5) # removing n.trees gives an optimal nb of iterations around 100 (using gbm::perf)
   gbm_country_model_xyz <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy,
+    data = my_lsms_cty,
     method = 'xgbTree',
     preProcess = c('center', 'scale', 'spatialSign'),
     trControl = ctrl,
@@ -209,10 +208,11 @@ compare_country_models <- function(my_country){
   print(gbm_country_model_xyz)
   test_set_xy$pred_gbm_xyz <- as.numeric(predict(gbm_country_model_xyz, test_set_xy)  )
   rsq_gbm_xyz <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_gbm_xyz)^2, 2)
-  # additionally print GBM performances with 2 different  methods
-  # gbm::gbm.perf(gbm_country_model_xyz, method = 'OOB')
-  # gbm::gbm.perf(gbm_country_model_xyz, method = 'cv')
-  print(paste0('rsq_gbm_xyz = ', round(rsq_gbm_xyz, 2)))
+  print(paste0('rsq_calculated_gbm_xyz = ', round(rsq_gbm_xyz, 2)))
+  rsq_gbm_xyz <- round(mean(gbm_country_model_xyz$results$Rsquared), 2)
+  print(paste0('rsq_gbm_xyz = ', round(rsq_gbm, 2)))
+  rsq_SD_gbm_xyz <- round(sd(gbm_country_model_xyz$results$Rsquared), 2)
+  print(rsq_SD_gbm_xyz)
   P06 <- ggplot(test_set_xy, aes(farm_area_ha, pred_gbm_xyz)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -226,7 +226,7 @@ compare_country_models <- function(my_country){
   #                                 n.trees = 1500, cross = 5) # tune.svm() suggested  cross = 10
   svm_country_model <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(!c(x, y)),
     method = 'svmRadial',
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -236,7 +236,11 @@ compare_country_models <- function(my_country){
   print(svm_country_model)
   test_set_xy$pred_svm <- as.numeric(predict(svm_country_model, test_set_xy)  )
   rsq_svm <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_svm)^2, 2)
+  print(paste0('rsq_calculated_svm = ', round(rsq_svm, 2)))
+  rsq_svm <- round(mean(svm_country_model$results$Rsquared), 2)
   print(paste0('rsq_svm = ', round(rsq_svm, 2)))
+  rsq_SD_svm <- round(sd(svm_country_model$results$Rsquared), 2)
+  print(rsq_SD_svm)
   P07 <- ggplot(test_set_xy, aes(farm_area_ha, pred_svm)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -250,7 +254,7 @@ compare_country_models <- function(my_country){
   #                                 n.trees = 1500, cross = 5) 
   svm_country_model_xy <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(farm_area_ha, x, y),
     method = 'svmRadial',
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -260,7 +264,11 @@ compare_country_models <- function(my_country){
   print(svm_country_model_xy)
   test_set_xy$pred_svm_xy <- as.numeric(predict(svm_country_model_xy, test_set_xy)  )
   rsq_svm_xy <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_svm_xy)^2, 2)
-  print(paste0('rsq_svm_xy = ', round(rsq_svm_xy, 2)))
+  print(paste0('rsq_calculated_svm_xy = ', round(rsq_svm_xy, 2)))
+  rsq_svm_xy <- round(mean(svm_country_model_xy$results$Rsquared), 2)
+  print(paste0('rsq_svm_xy = ', round(rsq_svm, 2)))
+  rsq_SD_svm_xy <- round(sd(svm_country_model_xy$results$Rsquared), 2)
+  print(rsq_SD_svm_xy)
   P08 <- ggplot(test_set_xy, aes(farm_area_ha, pred_svm_xy)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -273,7 +281,7 @@ compare_country_models <- function(my_country){
   #                                 n.trees = 1500, cross = 5) 
   svm_country_model_xyz <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy,
+    data = my_lsms_cty,
     method = 'svmRadial',
     preProcess = c('center', 'scale', 'spatialSign'),
     trControl = ctrl,
@@ -282,7 +290,12 @@ compare_country_models <- function(my_country){
   print(svm_country_model_xyz)
   test_set_xy$pred_svm_xyz <- as.numeric(predict(svm_country_model_xyz, test_set_xy)  )
   rsq_svm_xyz <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_svm_xyz)^2, 2)
-  print(paste0('rsq_svm_xyz = ', round(rsq_svm_xyz, 2)))
+  print(paste0('rsq_calculated_svm_xyz = ', round(rsq_svm_xyz, 2)))
+  rsq_svm_xyz <- round(mean(svm_country_model_xyz$results$Rsquared), 2)
+  print(paste0('rsq_svm_xyz = ', round(rsq_svm, 2)))
+  rsq_SD_svm_xyz <- round(sd(svm_country_model_xyz$results$Rsquared), 2)
+  print(rsq_SD_svm_xyz)
+  
   P09 <- ggplot(test_set_xy, aes(farm_area_ha, pred_svm_xyz)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -295,7 +308,7 @@ compare_country_models <- function(my_country){
   #                                                n.trees = 1500, cross = 5)
   rf_country_model <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(!c(x, y)),
     method = 'ranger',
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -305,29 +318,18 @@ compare_country_models <- function(my_country){
   print(rf_country_model)
   test_set_xy$pred_rf <- as.numeric(predict(rf_country_model, test_set_xy)  )
   rsq_rf <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_rf)^2, 2)
+  print(paste0('rsq_calculated_rf = ', round(rsq_rf, 2)))
+  rsq_rf <- round(mean(rf_country_model$results$Rsquared), 2)
   print(paste0('rsq_rf = ', round(rsq_rf, 2)))
+  rsq_SD_rf <- round(sd(rf_country_model$results$Rsquared), 2)
+  print(rsq_SD_rf)
+  
   P10 <- ggplot(test_set_xy, aes(farm_area_ha, pred_rf)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
     labs(title = my_country) +
     annotate('text', x = 10, y = 13, label = bquote(R^2== .(rsq_rf)) ) +
     theme_minimal() 
-  # Plot the map with RF
-  # if(my_country != 'Zambia'){
-  #   # refit the model using the whole dataset (training  + test sets)
-  #   stacked_cty <- terra::rast(paste0('../data/processed/stacked_cty_rasters_', my_country,'.tif'))
-  #   cty_fit <- randomForest::randomForest(farm_area_ha ~ ., data = my_lsms_cty |> select(!c(x, y)),
-  #                                         n.trees = 1500, cross = 5)
-  #   cty_rast3 <- terra::predict(stacked_cty, cty_fit, type = 'response', na.rm = T)
-  #   png(paste0('../output/maps/ML_model_comparison_', my_country, '_RF_covariates_only.png'), units="in", width=5.5, height=5.5, res=1000)
-  #   M10 <- {
-  #     terra::plot(cty_vect, main = paste0(my_country, ' - RF_covariates only'))
-  #     terra::plot(cty_rast3, col = terrain.colors(100), add = T)
-  #   }
-  #   dev.off()
-  # } else {
-  #   print('')
-  # }
   
   # Random forest (only the coordinates)
   # rf_country_model_xy <- randomForest::randomForest(farm_area_ha ~ .,
@@ -335,7 +337,7 @@ compare_country_models <- function(my_country){
   #                                                n.trees = 1500, cross = 5)
   rf_country_model_xy <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy |>
+    data = my_lsms_cty |>
       select(farm_area_ha, x, y),
     method = 'ranger',
     preProcess = c('center', 'scale', 'spatialSign'),
@@ -345,7 +347,12 @@ compare_country_models <- function(my_country){
   print(rf_country_model_xy)
   test_set_xy$pred_rf_xy <- as.numeric(predict(rf_country_model_xy, test_set_xy)  )
   rsq_rf_xy <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_rf_xy)^2, 2)
-  print(paste0('rsq_rf_xy = ', round(rsq_rf_xy, 2)))
+  print(paste0('rsq_calculated_rf_xy = ', round(rsq_rf_xy, 2)))
+  rsq_rf_xy <- round(mean(rf_country_model_xy$results$Rsquared), 2)
+  print(paste0('rsq_rf_xy = ', round(rsq_rf, 2)))
+  rsq_SD_rf_xy <- round(sd(rf_country_model_xy$results$Rsquared), 2)
+  print(rsq_SD_rf_xy)
+  
   P11 <- ggplot(test_set_xy, aes(farm_area_ha, pred_rf_xy)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -358,7 +365,7 @@ compare_country_models <- function(my_country){
   #                                                n.trees = 1500, cross = 5)
   rf_country_model_xyz <- caret::train(
     farm_area_ha ~ .,
-    data = training_set_xy,
+    data = my_lsms_cty,
     method = 'ranger',
     preProcess = c('center', 'scale', 'spatialSign'),
     trControl = ctrl,
@@ -367,7 +374,12 @@ compare_country_models <- function(my_country){
   print(rf_country_model_xyz)
   test_set_xy$pred_rf_xyz <- as.numeric(predict(rf_country_model_xyz, test_set_xy)  )
   rsq_rf_xyz <- round(cor(test_set_xy$farm_area_ha, test_set_xy$pred_rf_xyz)^2, 2)
-  print(paste0('rsq_rf_xyz = ', round(rsq_rf_xyz, 2)))
+  print(paste0('rsq_calculated_rf_xyz = ', round(rsq_rf_xyz, 2)))
+  rsq_rf_xyz <- round(mean(rf_country_model_xyz$results$Rsquared), 2)
+  print(paste0('rsq_rf_xyz = ', round(rsq_rf, 2)))
+  rsq_SD_rf_xyz <- round(sd(rf_country_model_xyz$results$Rsquared), 2)
+  print(rsq_SD_rf_xyz)
+  
   P12 <- ggplot(test_set_xy, aes(farm_area_ha, pred_rf_xyz)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, colour  = 'red4', size =0.8) +
@@ -375,20 +387,20 @@ compare_country_models <- function(my_country){
     annotate('text', x = 10, y = 13, label = bquote(R^2== .(rsq_rf_xyz)) ) +
     theme_minimal()
   
-  one_rsq <- cbind.data.frame(country = my_country, 
-                              rsq_tps_xy = rsq_tps_xy, rsq_tps_xyz = rsq_tps_xyz,
-                              rsq_gbm = rsq_gbm, rsq_gbm_xy = rsq_gbm_xy, rsq_gbm_xyz = rsq_gbm_xyz, 
-                              rsq_svm = rsq_svm, rsq_svm_xy = rsq_svm_xy, rsq_svm_xyz = rsq_svm_xyz, 
-                              rsq_rf = rsq_rf, rsq_rf_xy = rsq_rf_xy, rsq_rf_xyz = rsq_rf_xyz  #,
-                              # rmse_tps_xy = rmse_tps_xy, rmse_tps_cov = rmse_tps_xyz,
-                              # rmse_gbm = rmse_gbm, rmse_svm = rmse_svm, rmse_rf = rmse_rf
-                              )
+  one_rsq <- cbind.data.frame(
+    country = my_country, 
+    rsq_tps_xy = rsq_tps_xy, # rsq_tps_xyz = rsq_tps_xyz,
+    rsq_gbm = rsq_gbm, rsq_gbm_xy = rsq_gbm_xy, rsq_gbm_xyz = rsq_gbm_xyz, 
+    rsq_svm = rsq_svm, rsq_svm_xy = rsq_svm_xy, rsq_svm_xyz = rsq_svm_xyz, 
+    rsq_rf = rsq_rf, rsq_rf_xy = rsq_rf_xy, rsq_rf_xyz = rsq_rf_xyz,
+    
+    rsq_SD_tps_xy = rsq_SD_tps_xy, # rsq_SD_tps_xyz = rsq_SD_tps_xyz,
+    rsq_SD_gbm = rsq_SD_gbm, rsq_SD_gbm_xy = rsq_SD_gbm_xy, rsq_SD_gbm_xyz = rsq_SD_gbm_xyz, 
+    rsq_SD_svm = rsq_SD_svm, rsq_SD_svm_xy = rsq_SD_svm_xy, rsq_SD_svm_xyz = rsq_SD_svm_xyz, 
+    rsq_SD_rf = rsq_SD_rf, rsq_SD_rf_xy = rsq_SD_rf_xy, rsq_SD_rf_xyz = rsq_SD_rf_xyz  #
+  )
   mult_rsq <- rbind(mult_rsq, one_rsq)
-  results <- list(mult_rsq, P01, # P02, P03, 
-                  P04, P05, P06,
-                  # P07, P08, P09, 
-                  P10, P11, P12,
-                  # M01, M10,
+  results <- list(mult_rsq,  
                   tps_country_model_xy, # tps_country_model_xyz,
                   gbm_country_model, gbm_country_model_xy, gbm_country_model_xyz,
                   svm_country_model, svm_country_model_xy, svm_country_model_xyz,
@@ -405,12 +417,12 @@ fin <- Sys.time() - deb
 print(fin)
 
 # Compiling the R squares per model per country
-mult_rsq <- bind_rows(results_Benin[[1]], results_Burkina[[1]], results_Cote_d_Ivoire[[1]],
+mult_rsq1 <- bind_rows(results_Benin[[1]], results_Burkina[[1]], results_Cote_d_Ivoire[[1]],
                       results_Ethiopia[[1]], results_Guinea_Bissau[[1]], results_Malawi[[1]], results_Mali[[1]], 
                       results_Niger[[1]], results_Nigeria[[1]], results_Senegal[[1]], results_Tanzania[[1]], 
                       results_Togo[[1]], results_Uganda[[1]], results_Zambia[[1]] )
 
-model_perf <- mult_rsq |>
+model_perf <- mult_rsq1 |>
   pivot_longer(cols=starts_with('rsq_'),
                names_prefix = 'rsq_',
                names_to = 'model',
@@ -419,11 +431,22 @@ model_perf <- mult_rsq |>
 # model_perf_wide <- reshape2::dcast(model_perf, model ~ country, value.var='r_sq')
 model_perf_wide <-model_perf |>
   pivot_wider(id_cols = model, names_from = country, values_from = r_sq)
-save(mult_rsq, model_perf, model_perf_wide,
+model_perf_wide$model <- factor(model_perf_wide$model, 
+                                levels = c(
+                                  'tps_xy', 'rf', 'rf_xy', 'rf_xyz',
+                                  'gbm', 'gbm_xy', 'gbm_xyz',
+                                  'svm', 'svm_xy', 'svm_xyz',
+                                  
+                                  'SD_tps_xy', 'SD_rf', 'SD_rf_xy', 'SD_rf_xyz',
+                                  'SD_gbm', 'SD_gbm_xy', 'SD_gbm_xyz',
+                                  'SD_svm', 'SD_svm_xy', 'SD_svm_xyz'
+                                ))
+model_perf_wide <- model_perf_wide |>
+  arrange(model)
+save(mult_rsq1, model_perf, model_perf_wide,
      results_Benin, results_Burkina, results_Cote_d_Ivoire, 
      results_Ethiopia, results_Guinea_Bissau, results_Malawi,results_Mali,
       results_Niger, results_Nigeria, results_Senegal, results_Tanzania, 
      results_Togo, results_Uganda, results_Zambia, 
      file = '../data/processed/compare_country_models.Rdata')
-save(model_perf_wide, file = '../output/tables/comparison_ML_models_per_country.Rdata')
 write.csv(model_perf_wide, file = '../output/tables/comparison_ML_models_per_country.csv')

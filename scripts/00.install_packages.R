@@ -1,8 +1,5 @@
-
-
 # Open the file from the folder and set working directory, using the here package
-setwd(here::here())
-
+setwd(paste0(here::here(), '/scripts'))
 
 # install the following packages if required
 
@@ -25,12 +22,14 @@ required_packages <- c('tidyverse', 'here', 'curl',
                        'afrilearndata', 'terra', 'geodata',
                        'caret', 'gbm', 'xgboost', 'kernlab', 'e1071',
                        'randomForest', 'quantregForest', 'ranger', 
-                       'EnvStats', 'fitdistrplus')
+                       'XNomial', 'EnvStats', 'fitdistrplus')
 
 # Call the function with the list of packages
 install_me(required_packages)
+
 # additionally, install these packages from github
 remotes::install_github('afrimapr/afrilearndata')
+remotes::install_github('ropensci/tabulizer')
 
 ### Create the following subfolders in the main folder
 # 'scripts', 'data', 'output', and 'validation.'

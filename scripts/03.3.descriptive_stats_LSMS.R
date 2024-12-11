@@ -3,17 +3,19 @@
 # load packages
 require(tidyverse)
 # Set working directory
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # Clean environment
 rm(list=ls())
 
 # ------------------------------------------------------------------------------
 # for all raw files, get 'my_lsms_africa.Rdata' and pick my_lsms
-load('../data/processed/lsms_spatial_raw.rdata') 
+# lsms data
+load('../data/processed/lsms_trimmed_95th_africa.rdata') 
 
-my_lsms <- lsms_spatial_raw |>
-  select(country, year, farm_area_ha)
+my_lsms <- lsms_spatial |>
+  select(country, year, farm_area_ha) |>
+  filter(farm_area_ha > 0)
 
 # nunber of waves per country
 nb_waves <- my_lsms |>

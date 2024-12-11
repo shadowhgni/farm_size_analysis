@@ -1,7 +1,7 @@
 # Understanding and predicting the variability of farm size across SSA
 
 # Open the file from the folder and set working directory, using the here package
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # Clean environment
 rm(list=ls())
@@ -64,35 +64,39 @@ fourteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gnb_di
 
 #############################################################################################################
 # retrieve all required spatial layers from input_path
-stacked_00 <- terra::rast('../data/processed/all_predictors.tif')
+stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
 
 
 # ------------------------------------------------------------------------------
 # lsms data
-load('../data/processed/lsms_and_zambia.rdata') 
-lsms_spatial_raw <- cbind(lsms_and_zambia, 
-                      terra::extract(stacked_00, lsms_and_zambia |>
-                                       select(x, y), ID = F)) |>
-  filter(!(x == 0 & y == 0))
-lsms_spatial_for_all_analyses <- lsms_spatial_raw |>
-  select(!c(country, year, farm_id, hh_size, gdp, wealth_index)) 
+load('../data/processed/lsms_trimmed_95th_africa.rdata') 
+
+# keep only variables needed in the models
+lsms_spatial <- lsms_spatial |>
+  select(x, y, country, farm_area_ha, cropland, cattle, pop, cropland_per_capita,
+         sand, slope, temperature, rainfall, maizeyield, market) |>
+  na.omit() 
 
 # Check correlation matrix to select relevant drivers
-P00 <- lsms_spatial_for_all_analyses |>
-  select(!c(x, y)) |>
-  GGally::ggpairs(upper = list(continuous = GGally::wrap("cor", size = 2)), 
-                  diag = list(continuous = GGally::wrap("densityDiag")))
+P00 <- lsms_spatial |>
+  select(!c(x, y, country)) |>
+  GGally::ggpairs(upper = list(continuous = GGally::wrap("cor", size = 3)), 
+                  diag = list(continuous = GGally::wrap("densityDiag"))) +
+  theme(
+    strip.text = element_text(size = 4.5),
+    axis.text = element_text(size = 4)  
+  )
 
-png('../data/processed/drivers_correlation_matrix.png', height = 15, width = 20, units = 'cm', res = 600)
+png('../output/graphs/drivers_correlation_matrix.png', height = 15, width = 20, units = 'cm', res = 600)
 P00
-ggsave('../data/processed/drivers_correlation_matrix.png')
+ggsave('../output/graphs/drivers_correlation_matrix.png')
 dev.off()
 
-lsms_spatial_reduced <- lsms_spatial_for_all_analyses |>
-  select(!c(elevation)) |>
-  na.omit()
-save(lsms_spatial_raw, lsms_spatial_reduced,
-     file = '../data/processed/lsms_spatial_raw.rdata')
+# lsms_spatial_reduced <- lsms_spatial_for_all_analyses |>
+#   select(!c(elevation)) |>
+#   na.omit()
+# save(lsms_spatial_raw, lsms_spatial_reduced,
+#      file = '../data/processed/lsms_spatial_raw.rdata')
 
 # ## Run several loops like yhis one
 # # Remove one variable at time, and check model's performances against full model

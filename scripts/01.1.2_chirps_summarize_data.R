@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
 # Open the file from the folder and set working directory, using the here package
-setwd(here::here())
+setwd(paste0(here::here(), '/scripts'))
 
 # Clean environment
 rm(list=ls())
