@@ -46,7 +46,7 @@ leave_one_country_models <- function(my_country){
   set.seed(2024) # just for reproducibility!
   
   # caret control parms
-  ctrl <- caret::trainControl(method = "cv", number = 10, verboseIter = F)
+  # ctrl <- caret::trainControl(method = "cv", number = 10, verboseIter = F)
   
   # subsetting df: training - test split (point-based)
   training_set <- df |>  
@@ -294,7 +294,7 @@ leave_one_country_models <- function(my_country){
   
   write.csv(mult_rsq, file = paste0('../output/model_eval_', my_country, '.csv'), row.names = F)
   write.csv(mult_rsq, file = model_result_file1, row.names = F)
-  save(results, file = paste0('../output/results_', my_country, '.rdata'))
+  saveRDS(results, file = paste0('../output/results_', my_country, '.RDS'))
   return(mult_rsq)
 }
 
