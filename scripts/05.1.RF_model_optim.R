@@ -23,7 +23,8 @@ rf_optim <- function(x) {
 
 	# ------------------------------------------------------------------------------
 	# set parms
-	train_control <- caret::trainControl(method = "cv", number = 10, savePredictions = "all", seeds = 2024)
+	seeds_list[[11]] <- sample.int(10000, size = 1) 
+	ctrl <- caret::trainControl(method = 'cv', number = 10, savePredictions = 'all', seeds = seeds_list)
 
 
 	rf_full_model <- caret::train(
@@ -31,7 +32,7 @@ rf_optim <- function(x) {
 		data = lsms_spatial,
 		method = "ranger",
 		preProcess = c("center", "scale", "spatialSign"),
- #	 trControl = train_control,
+		trControl = ctrl,
 		keep.inbag = TRUE,
 		tuneGrid = x[, 1:3],
 		importance	= "permutation",
