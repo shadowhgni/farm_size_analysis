@@ -5,12 +5,12 @@ rf_optim <- function(x) {
 
 # input and ouptut foders and files
 	input_path <- "data"
-	output_path <- "output"
+	output_path <- "output/RFoptim_"
+	dir.create(output_path, FALSE, TRUE) 
 
 	treatment <- paste0(x[,1:3], collapse="-")
 	outfile <- paste0("RFoptim_", treatment, "_mbucket-", x$mbuck, ".Rds") 
 	print(paste("-------- run =", outfile, "----------"))
-	dir.create(output_path, FALSE, FALSE) 
 	outfile <- file.path(output_path, outfile)
 	# if (file.exists(output_file)) return("file existed")
 

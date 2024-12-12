@@ -62,7 +62,7 @@ test_rf <- function(d) {
 
 
 # Using a training set (all other countries) and a test set (country of interest) to evaluate model performance
-leave_one_country_models <- function(country, model, means){
+leave_one_country_models <- function(country, model, means, test){
 
 	stopifnot(model %in% c("TPS", "RF"))
 
@@ -78,7 +78,7 @@ leave_one_country_models <- function(country, model, means){
 	my_code <- country_codes[country]
 
 	c("all", "means")
-	fname <- file.path(output_path, paste0("loc_", my_code, "_", model, "_",  c("all", "means")[means+1], ".Rds"))
+	fname <- file.path(output_path, paste0("loc_", my_code, "_", model, "_",  c("all", "means")[means+1], "_", c("train", "test")[test+1], ".Rds"))
 
 	print(paste0("--------------- Model evaluation in ", my_country, " (point-based) -------------"))
 
@@ -108,20 +108,25 @@ leave_one_country_models <- function(country, model, means){
 		if (model == "TPS") {
 			out <- test_tps(test_set_mean)
 		} else {
+			if (test) {
 		# Random forest with my_country (only the covariates). This serves as reference
-			out <- test_rf(test_set_mean)
+				out <- test_rf(test_set_mean)
+			} else {
 		# Random forest with other countries (only the covariates)
-			out <- test_rf(training_set_mean)
+				out <- test_rf(training_set_mean)
+			}
 		}
-
 	} else {
 		if (model == "TPS") {
 			out <- test_tps(test_set)
 		} else {
 		## Random forest with my_country (only the covariates). This serves as reference
-			out <- test_rf(test_set)
+			if (test) {
+				out <- test_rf(test_set)
 		# Random forest with other countries (only the covariates)
-			out <- test_rf(training_set)
+			} else {
+				out <- test_rf(training_set)
+			}
 		}
 	}
 	
@@ -129,6 +134,7 @@ leave_one_country_models <- function(country, model, means){
 		country = country,
 		model = model,
 		means = means,
+		test = test,
 		rsq = out$rsq,
 		rsq_cv = out$rsq_cv
 	)
@@ -139,18 +145,19 @@ leave_one_country_models <- function(country, model, means){
 }
 
 
-trts <- expand.grid(country=1:14, model=c("RF", "TPS"), means=c(TRUE, FALSE))
+trts <- expand.grid(country=1:14, model=c("RF", "TPS"), means=c(TRUE, FALSE), test=c(TRUE, FALSE))
+trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
 
 # parallel
 i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-if (i <= 56) {
-	leave_one_country_models(trts$country[i], trts$model[i], trts$means[i])
+if (i <= 84) {
+	leave_one_country_models(trts$country[i], trts$model[i], trts$means[i], trts$test[i])
 	print("OK")
 } else {
-	print("done (i > 56)")
+	print("done (i > 84)")
 }
 
 
 # slurm options
-#sbatch --array=1-56 -p bmh --time=1200 --mem=32G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
+#sbatch --array=1-84 -p bmh --time=600 --mem=32G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
 
