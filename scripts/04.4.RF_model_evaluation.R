@@ -38,7 +38,7 @@ test_tps_fixed <- function(train, test) {
 	test <- as.matrix(test)
 	prediction <- predict(tps_model, test[, c("x", "y")], Z=test[,Zvars])
 	rsq <- round(cor(test[, "farm_area_ha"], prediction)^2, 4) # Get the r2
-	list(prediction=as.numeric(prediction), rsq=rsq)
+	list(prediction=as.numeric(prediction), rsq_cv=NA, rsq=rsq)
 }	
 
 
@@ -124,6 +124,15 @@ leave_one_country_models <- function(country, model, means){
 			out <- test_rf(training_set)
 		}
 	}
+	
+	out$result <- data.frame(
+		country = country,
+		model = model,
+		means = means,
+		rsq = out$rsq,
+		rsq_cv = out$rsq_cv
+	)
+	out$rsq <- out$rsq_cv <- NULL
 	
 	saveRDS(out, fname)
 	fname
