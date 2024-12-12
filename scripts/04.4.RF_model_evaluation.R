@@ -19,7 +19,7 @@ test_tps <- function(d) {
 	# predict the TPS on the coordinates of observed data
 	prediction <- predict(tps_model, d[, c("x", "y")], Z=Z)[,1]
 	rsq <- round(cor(d$farm_area_ha, prediction)^2, 4) # Get the r2
-	list(prediction=prediction, rsq=rsq)
+	list(prediction=prediction, rsq_cv=NA, rsq=rsq)
 }	
 
 ### fixed TPS function?
