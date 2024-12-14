@@ -5,7 +5,7 @@ rf_optim <- function(x) {
 
 # input and ouptut foders and files
 	input_path <- "data"
-	output_path <- "output/RFoptim_"
+	output_path <- "output/RFoptim"
 	dir.create(output_path, FALSE, TRUE) 
 
 	treatment <- paste0(x[,1:3], collapse="-")
@@ -38,7 +38,8 @@ rf_optim <- function(x) {
 		num.trees = 500
 	)
 	
-	saveRDS(rf_full_model, file = outfile)
+	out <- data.frame(x, rf_full_model$results, row.names=NULL)
+	saveRDS(out, file = outfile)
 	rf_full_model$results
 }
 
@@ -73,3 +74,9 @@ if (i <= nrow(tune_grid)) {
 
 # slurm options
 #sbatch --array=1-4992 -p bmh --time=1200 --mem=32G --job-name=farms ~/farm/clusterR.sh scripts/05.1.RF_model_optim.R
+
+
+compile_fun <- function() {
+	ff <- list.files(path="output/RFoptim", pattern="\\.Rds$", full=TRUE)
+	x <- sapply(ff, readRDS)
+}
