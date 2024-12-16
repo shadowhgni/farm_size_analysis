@@ -1,7 +1,6 @@
 # Evaluate model framework, leaving out 1 country and compare the predictions with interpolation
 # ------------------------------------------------------------------------------
 
-# the original function. Does not look right because test data is not used
 test_tps <- function(d) {
 # Fit a TPS model
 	if (!("fields" %in% installed.packages()[,1])) install.packages("fields")
@@ -19,27 +18,7 @@ test_tps <- function(d) {
 	# predict the TPS on the coordinates of observed data
 	prediction <- predict(tps_model, d[, c("x", "y")], Z=Z)[,1]
 	rsq <- cor(d$farm_area_ha, prediction)^2 # Get the r2
-	list(prediction=prediction, rsq_cv=NA, rsq=rsq)
-}	
-
-### fixed TPS function?
-### if so, same should be applied to test_rf
-test_tps_fixed <- function(train, test) {
-# Fit a TPS model
-	if (!("fields" %in% installed.packages()[,1])) install.packages("fields")
-	# with X and Y only
-	## cty_fit0 <- fields::Tps(cbind(train$x, train$y), train$farm_area_ha, lon.lat = TRUE)
-	
-	train <- as.matrix(train)
-	Zvars <- c("cropland", "cattle", "pop", "cropland_per_capita", "sand", "slope", "temperature", "rainfall", "market", "maizeyield")
-	tps_model <- fields::Tps(train[, c("x", "y")], train[, "farm_area_ha"], Z = train[,Zvars], lon.lat = TRUE)
-	
-	# predict the TPS on the coordinates of observed data
-	test <- as.matrix(test)
-	prediction <- predict(tps_model, test[, c("x", "y")], Z=test[,Zvars])
-	rsq <- cor(test[, "farm_area_ha"], prediction)^2 # Get the r2
-	# list(prediction=as.numeric(prediction), rsq_cv=NA, rsq=rsq)
-	data.frame(rsq=rsq)	
+	list(prediction=prediction, results=data.frame(rsq=rsq))
 }	
 
 
@@ -59,28 +38,30 @@ test_rf <- function(d) {
 ### cv <- rf_model$results |> as.data.frame() |> dplyr::select(Rsquared) |> dplyr::pull() |> mean() 
 #	cv <- mean(rf_model$results$Rsquared)
 #	rsq <- cor(d$farm_area_ha, prediction)^2
-#	list(prediction=prediction, rsq_cv=cv, rsq=rsq)
+
+	list(prediction=prediction, results=rf_model$results)
 	
-	rf_model$results
 }
 
 
 # Using a training set (all other countries) and a test set (country of interest) to evaluate model performance
 leave_one_country_models <- function(the_country, the_code, model, means, test){
 
+	print(paste0("--------------- Model evaluation in ", the_country, " (point-based) -------------"))
+
 	stopifnot(model %in% c("TPS", "RF"))
 
 	set.seed(2024) # just for reproducibility!
 
 	input_path <- "data"
-	output_path <- "output/leave_one"
+	 <- "output/leave_one"
 	dir.create(output_path, FALSE, TRUE)
 
 
 	fname <- file.path(output_path, paste0("loc_", the_code, "_", model, "_",  c("all", "means")[means+1], "_", c("train", "test")[test+1], ".Rds"))
-
-	print(paste0("--------------- Model evaluation in ", the_country, " (point-based) -------------"))
-
+	if (file.exists(fname)) {
+		return(fname)
+	}
 
 	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.Rds"))
 	lsms_spatial <- lsms_spatial |> dplyr::select(x, y, country, farm_area_ha, cropland, cattle, pop, cropland_per_capita,
@@ -129,17 +110,55 @@ leave_one_country_models <- function(the_country, the_code, model, means, test){
 		}
 	}
 	
-	out <- data.frame(
+	out$results <- data.frame(
 		country = the_country,
 		code = the_code,
 		model = model,
 		means = means,
 		test = test,
-		out
+		out$results
 	)
 
 	saveRDS(out, fname)
 	fname
+}
+
+
+summarize <- function() {
+	frf <- list.files("output/leave_one", "RF.*\\.Rds", full.names=TRUE)
+	x <- do.call(rbind, lapply(frf, readRDS)$results)
+	saveRDS(x, "output/leave_one_RF.Rds")
+
+	ftps <- list.files("output/leave_one", "TPS.*\\.Rds", full.names=TRUE)
+	y <- do.call(rbind, lapply(ftps, readRDS)$results)
+	saveRDS(y, "output/leave_one_TPS.Rds")
+
+	# compare TPS predictions (focal country data seen) with RF predictions (focal country data not seen)
+	ftp <- list.files("output/leave_one", "TPS_all", full.names=TRUE)
+	frf <- list.files("output/leave_one", "RF_all_test", full.names=TRUE)
+	out1 <- data.frame(code=country_codes, means=FALSE)
+	out1$cor <- sapply(country_codes, 
+		function(code) {
+			tp <- readRDS(grep(code, ftp, value=TRUE))
+			rf <- readRDS(grep(code, frf, value=TRUE))
+			cor(tp$prediction, rf$prediction, use="pairwise.complete.obs")
+		}
+	)
+	# using mean values
+	ftp <- list.files("oldout/leave_one", "TPS_means", full.names=TRUE)
+	frf <- list.files("oldout/leave_one", "RF_means_test", full.names=TRUE)
+	out2 <- data.frame(code=country_codes, means=TRUE)
+	out2$cor <- sapply(country_codes, 
+		function(code) {
+			if (code == "TZA") return(NA)
+			tp <- readRDS(grep(code, ftp, value=TRUE))
+			rf <- readRDS(grep(code, frf, value=TRUE))
+			cor(tp$prediction, rf$prediction, use="pairwise.complete.obs")
+		}
+	)
+	out <- rbind(out1, out2)
+	
+	saveRDS(out, "output/leave_one_cor.Rds")
 }
 
 
@@ -153,13 +172,16 @@ trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
 # parallel
 i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 if (i <= 84) {
-	leave_one_country_models(countries[trts$country[i]], code[trts$country[i]], trts$model[i], trts$means[i], trts$test[i])
+	leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i])
 	print("OK")
+} else if (i == 85) {
+	summarize()
 } else {
-	print("done (i > 84)")
+	print("done (i > 85)")
 }
 
 
 # slurm options
-#sbatch --array=1-84 -p bmh --time=600 --mem=32G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
+#sbatch --array=1-85 -p bmh --time=600 --mem=16G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
+
 
