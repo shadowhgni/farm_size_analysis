@@ -34,7 +34,8 @@ test_rf <- function(d) {
 	)
 	print(rf_model)
 	
-#	prediction <- predict(rf_model, d) |> as.numeric()
+	prediction <- predict(rf_model, d) |> as.numeric()
+	
 ### cv <- rf_model$results |> as.data.frame() |> dplyr::select(Rsquared) |> dplyr::pull() |> mean() 
 #	cv <- mean(rf_model$results$Rsquared)
 #	rsq <- cor(d$farm_area_ha, prediction)^2
@@ -45,27 +46,28 @@ test_rf <- function(d) {
 
 
 # Using a training set (all other countries) and a test set (country of interest) to evaluate model performance
-leave_one_country_models <- function(the_country, the_code, model, means, test){
-
-	print(paste0("--------------- Model evaluation in ", the_country, " (point-based) -------------"))
+leave_one_country_models <- function(the_country, the_code, model, means, test, sample_size=NA){
 
 	stopifnot(model %in% c("TPS", "RF"))
 
-	set.seed(2024) # just for reproducibility!
-
-	input_path <- "data"
-	 <- "output/leave_one"
+	input_path <- "data/processed"
+	output_path <- "output/leave_one"
 	dir.create(output_path, FALSE, TRUE)
 
-
-	fname <- file.path(output_path, paste0("loc_", the_code, "_", model, "_",  c("all", "means")[means+1], "_", c("train", "test")[test+1], ".Rds"))
+	print(paste0("--------------- Model evaluation in ", the_country, " (point-based) -------------"))
+	fname <- file.path(output_path, paste0("loc_", the_code, "_", model, "_",  c("all", "means")[means+1], "_", c("train", "test")[test+1], ".rds"))
 	if (file.exists(fname)) {
 		return(fname)
 	}
+	print(basename(fname))
 
-	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.Rds"))
+
+	
+	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.rds"))
 	lsms_spatial <- lsms_spatial |> dplyr::select(x, y, country, farm_area_ha, cropland, cattle, pop, cropland_per_capita,
          sand, slope, temperature, rainfall, maizeyield, market) |>  na.omit() 
+
+	set.seed(2024) # for reproducibility!
 
     # caret control parms
 	ctrl <- caret::trainControl(method = "cv", number = 10, verboseIter = FALSE)
@@ -73,6 +75,7 @@ leave_one_country_models <- function(the_country, the_code, model, means, test){
   # subsetting df: training - test split (point-based)
 	training_set <- lsms_spatial|>  dplyr::filter(country != the_country) |>  dplyr::select(!country) |>  na.omit()
 	test_set <- lsms_spatial |> dplyr::filter(country == the_country) |>  dplyr::select(!country) |>  na.omit()
+
 
 	if (means) {
 	  #training - test split (consolidated mean-based => exclude all points with less than 10 records)
@@ -97,6 +100,13 @@ leave_one_country_models <- function(the_country, the_code, model, means, test){
 			}
 		}
 	} else {
+
+		if (!is.na(sample_size)) {
+			training_set <- training_set[sample(min(nrow(training_set), sample_size)), ]
+			test_set <- test_set[sample(min(nrow(test_set), 2*sample_size)), ]
+		}
+
+
 		if (model == "TPS") {
 			out <- test_tps(test_set)
 		} else {
@@ -125,13 +135,13 @@ leave_one_country_models <- function(the_country, the_code, model, means, test){
 
 
 summarize <- function() {
-	frf <- list.files("output/leave_one", "RF.*\\.Rds", full.names=TRUE)
+	frf <- list.files("output/leave_one", "RF.*\\.rds", full.names=TRUE)
 	x <- do.call(rbind, lapply(frf, readRDS)$results)
-	saveRDS(x, "output/leave_one_RF.Rds")
+	saveRDS(x, "output/leave_one_RF.rds")
 
-	ftps <- list.files("output/leave_one", "TPS.*\\.Rds", full.names=TRUE)
+	ftps <- list.files("output/leave_one", "TPS.*\\.rds", full.names=TRUE)
 	y <- do.call(rbind, lapply(ftps, readRDS)$results)
-	saveRDS(y, "output/leave_one_TPS.Rds")
+	saveRDS(y, "output/leave_one_TPS.rds")
 
 	# compare TPS predictions (focal country data seen) with RF predictions (focal country data not seen)
 	ftp <- list.files("output/leave_one", "TPS_all", full.names=TRUE)
@@ -158,7 +168,7 @@ summarize <- function() {
 	)
 	out <- rbind(out1, out2)
 	
-	saveRDS(out, "output/leave_one_cor.Rds")
+	saveRDS(out, "output/leave_one_cor.rds")
 }
 
 
@@ -169,7 +179,15 @@ trts <- expand.grid(country=1:14, model=c("RF", "TPS"), means=c(TRUE, FALSE), te
 trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
 
 
-# parallel
+### sequential with sampling
+seqfun <- function() {
+	for (i in 1:84) { 
+		leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i], sample_size=100)
+	}
+}
+
+
+### parallel
 i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 if (i <= 84) {
 	leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i])
