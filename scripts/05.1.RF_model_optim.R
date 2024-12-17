@@ -29,7 +29,7 @@ rf_optim <- function(x) {
 		farm_area_ha ~ .,
 		data = lsms_spatial,
 		method = "ranger",
-		preProcess = c("center", "scale", "spatialSign"),
+		# preProcess = c("center", "scale", "spatialSign"),
 		trControl = ctrl,
 		keep.inbag = TRUE,
 		tuneGrid = x[, 1:3],
