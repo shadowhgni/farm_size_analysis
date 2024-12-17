@@ -22,11 +22,11 @@ test_tps <- function(d) {
 }	
 
 
-test_rf <- function(d) {
+test_rf <- function(d_train, d_test) {
 # Random forest with my_country (only the covariates). This serves as reference
 	rf_model <- caret::train(
 		farm_area_ha ~ .,
-		data = d |> dplyr::select(!c(x, y)),
+		data = d_train |> dplyr::select(!c(x, y)),
 		method = "ranger",
 		# preProcess = c("center", "scale", "spatialSign"),
 		# trControl = ctrl,
@@ -34,7 +34,7 @@ test_rf <- function(d) {
 	)
 	print(rf_model)
 	
-	prediction <- predict(rf_model, d) |> as.numeric()
+	prediction <- predict(rf_model, d_test) |> as.numeric()
 	
 ### cv <- rf_model$results |> as.data.frame() |> dplyr::select(Rsquared) |> dplyr::pull() |> mean() 
 #	cv <- mean(rf_model$results$Rsquared)
@@ -93,10 +93,10 @@ leave_one_country_models <- function(the_country, the_code, model, means, test, 
 		} else {
 			if (test) {
 		# Random forest with the_country (only the covariates). This serves as reference
-				out <- test_rf(test_set_mean)
+				out <- test_rf(test_set_mean, test_set_mean)
 			} else {
 		# Random forest with other countries (only the covariates)
-				out <- test_rf(training_set_mean)
+				out <- test_rf(training_set_mean, test_set_mean)
 			}
 		}
 	} else {
@@ -112,10 +112,10 @@ leave_one_country_models <- function(the_country, the_code, model, means, test, 
 		} else {
 		## Random forest with the_country (only the covariates). This serves as reference
 			if (test) {
-				out <- test_rf(test_set)
+				out <- test_rf(test_set, test_set)
 		# Random forest with other countries (only the covariates)
 			} else {
-				out <- test_rf(training_set)
+				out <- test_rf(training_set, test_set)
 			}
 		}
 	}
