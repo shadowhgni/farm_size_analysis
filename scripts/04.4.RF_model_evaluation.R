@@ -172,8 +172,8 @@ summarize <- function() {
 }
 
 
-countries <- c("Benin", "Burkina", "Cote_d_Ivoire", "Ethiopia", "Guinea_Bissau", "Malawi", "Mali", "Niger", "Nigeria", "Senegal", "Tanzania", "Togo", "Uganda", "Zambia")
-country_codes <- c("BEN", "BFA", "CIV", "ETH", "GNB", "MWI", "MLI", "NER", "NGA", "SEN", "TZA", "TGO", "UGA", "ZMB")
+countries <- c("Benin", "Burkina", "Cote_d_Ivoire", "Ethiopia", "Ghana", "Guinea_Bissau", "Malawi", "Mali", "Niger", "Nigeria", "Rwanda", "Senegal", "Tanzania", "Togo", "Uganda", "Zambia")
+country_codes <- c("BEN", "BFA", "CIV", "ETH", "GHA", "GNB", "MWI", "MLI", "NER", "NGA", "RWA, "SEN", "TZA", "TGO", "UGA", "ZMB")
 
 trts <- expand.grid(country=1:14, model=c("RF", "TPS"), means=c(TRUE, FALSE), test=c(TRUE, FALSE))
 trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
@@ -181,7 +181,7 @@ trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
 
 ### sequential with sampling
 seqfun <- function() {
-	for (i in 1:84) { 
+	for (i in 1:96) { 
 		leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i], sample_size=100)
 	}
 }
@@ -189,17 +189,17 @@ seqfun <- function() {
 
 ### parallel
 i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-if (i <= 84) {
+if (i <= 96) {
 	leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i])
 	print("OK")
-} else if (i == 85) {
+} else if (i == 97) {
 	summarize()
 } else {
-	print("done (i > 85)")
+	print("done (i > 97)")
 }
 
 
 # slurm options
-#sbatch --array=1-85 -p bmh --time=600 --mem=16G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
+#sbatch --array=1-97 -p bmh --time=600 --mem=16G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
 
 
