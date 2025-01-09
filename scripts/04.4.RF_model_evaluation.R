@@ -173,7 +173,7 @@ summarize <- function() {
 
 
 countries <- c("Benin", "Burkina", "Cote_d_Ivoire", "Ethiopia", "Ghana", "Guinea_Bissau", "Malawi", "Mali", "Niger", "Nigeria", "Rwanda", "Senegal", "Tanzania", "Togo", "Uganda", "Zambia")
-country_codes <- c("BEN", "BFA", "CIV", "ETH", "GHA", "GNB", "MWI", "MLI", "NER", "NGA", "RWA, "SEN", "TZA", "TGO", "UGA", "ZMB")
+country_codes <- c("BEN", "BFA", "CIV", "ETH", "GHA", "GNB", "MWI", "MLI", "NER", "NGA", "RWA", "SEN", "TZA", "TGO", "UGA", "ZMB")
 
 trts <- expand.grid(country=1:14, model=c("RF", "TPS"), means=c(TRUE, FALSE), test=c(TRUE, FALSE))
 trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
