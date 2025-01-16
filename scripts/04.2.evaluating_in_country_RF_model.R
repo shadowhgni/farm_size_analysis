@@ -20,12 +20,12 @@ isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 pal <- colorRampPalette(c('darkred', 'orange', 'gold', 'darkolivegreen3', 'darkgreen'))
 
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
-
+#define the countries for which LSMS data are available
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 # ------------------------------------------------------------------------------
 # Prepare data: load lsms data and stacked (raster of drivers)
-load('../data/processed/lsms_trimmed_95th_africa.rdata') # this was retrieved from '03.1.pooled_data_for_analysis.r'
+lsms_spatial <- readRDS('../data/processed/lsms_trimmed_95th_africa.rds') # this was retrieved from '03.1.pooled_data_for_analysis.r'
 stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
 
 # keep only variables needed in the models
@@ -43,7 +43,7 @@ compare_gadm_rf_models <- function(my_country){
   # fetching the data subset for the country
   my_lsms_cty <- lsms_spatial |>
     filter(country == my_country, 
-           gadm_0 == fourteen_country_codes[fourteen_countries == my_country]) 
+           gadm_0 == sixteen_country_codes[sixteen_countries == my_country]) 
   
   # caret control parms
   ctrl <- caret::trainControl(method = "cv", number = 10, verboseIter = F)
@@ -111,7 +111,7 @@ compare_gadm_rf_models <- function(my_country){
 # Initialization and function application (run this chunk of 4 lines at once)
 deb <- Sys.time()
 all_rows <- data.frame()
-mult_rsq <- do.call(bind_rows, lapply(fourteen_countries, compare_gadm_rf_models))
+mult_rsq <- do.call(bind_rows, lapply(sixteen_countries, compare_gadm_rf_models))
 fin <- Sys.time() - deb
 print(fin)
 
@@ -140,4 +140,4 @@ P01
 ggsave('../output/graphs/gadm_1__point_based_cross_validation.png')
 dev.off()
 
-write.csv(mult_rsq, '../output/tables/gadm_1__point_based_cross_validation.csv')
+write.csv(mult_rsq, '../output/tables/gadm_1__point_based_cross_validation.csv', row.names = F)

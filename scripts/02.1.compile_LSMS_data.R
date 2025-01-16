@@ -28,8 +28,8 @@ ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 
 #############################################################################################################
 #define the countries for which LSMS data are available
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 
 
 #######################################################################
@@ -4718,11 +4718,6 @@ write_csv(mli_raw, file = paste0('../data/processed/', 'Mali_2017','_raw.csv'))
 #######################################################################
 # Get LSMS data from Ghana 2017
 
-# EA GPS in eaci_geovariables_2012
-# Sex given as    in eaci17_s01p1
-# plot details in     eaci17_s11bp1
-# crop code as  in    eaci17_s11cp1
-
 gha_fold1 <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep('Ghana_2012', dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
 gha_zip <- dir(gha_fold1, full.names = T)[grep('\\.zip$', dir(gha_fold1))]
 temporary_dir <- '../data/processed/temporary'
@@ -4732,6 +4727,7 @@ unzip(gha_zip, exdir = temporary_dir)
 gha_fold2 <- dir(temporary_dir, recursive = T, full.names = T)[grep('STATA\\.zip$', dir(temporary_dir, recursive = T))]
 unzip(gha_fold2, exdir = temporary_dir)
 
+# to check the list of variable names and labels
 # sapply(dir(temporary_dir, recursive = T,)[grep('STATA\\/SECTION 10\\/sec10_filters\\.dta', dir(temporary_dir, recursive = T), ignore.case = T)], function(x) {
 #   ea_data <- haven::read_dta(paste0(temporary_dir, '/', x))
 #   print(paste0('--------------- ', x, '--------------------------'))
@@ -4739,10 +4735,10 @@ unzip(gha_fold2, exdir = temporary_dir)
 #   View(ea_data)
 # 
 # })
-# 'STATA\\/AGGREGATES\\/GHA_2013_H\\.dta', 'STATA\\/AGGREGATES\\/00_GHA_BASICINFO.dta', 
+
 household_roster <- dir(temporary_dir, recursive = T,)[grep('STATA\\/PARTA\\/SEC1\\.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
 plot_roster <- dir(temporary_dir, recursive = T,)[grep('STATA\\/PARTB\\/sec8b.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
-ea_characteristics <- dir(temporary_dir, recursive = T,)[grep('STATA/PARTA/SECA.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+ea_characteristics <- dir(temporary_dir, recursive = T,)[grep('STATA/AGGREGATES/INCfromSec11b.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
 gha_codebook <- dir(temporary_dir, recursive = T)[grep('CODEBOOK\\.pdf$', dir(temporary_dir, recursive = T))]
 
 hh_data <-haven::read_dta(paste0(temporary_dir, '/', household_roster))
@@ -4830,7 +4826,7 @@ gha_dist_02 <- fuzzyjoin::fuzzy_inner_join(
 ) |> 
   arrange(NAME_2.x, NAME_2.y)
 
-View(gha_dist_02 )
+View(gha_dist_02 ) # for manual screening
 gha_dist_02 <- gha_dist_02[-c(15, 16, 20, 21, 22, 36, 43, 44, 55, 56, 62, 66, 67, 80),]
 gha_dist_02 <- gha_dist_02 |>
   distinct(code, .keep_all = T)
@@ -4880,53 +4876,246 @@ gha_dist_01 <- gha_dist_01 |>
   select(x, y, code, starts_with('NAME_')) |>
   arrange(NAME_1, NAME_2)
 
-gha_raw <- hh_data |>
-  select(grappe, exploitation, s1q01) |>
-  filter(!is.na(s1q01)) |> # sex must be filled in
-  mutate(ea_id = as.character(grappe),
-         farm_id = as.character(paste0(sprintf('%04g', grappe), '_', sprintf('%04g', exploitation)))) |>
-  group_by(ea_id, farm_id) |>
-  summarise(hh_size = n()) |>
+gha_raw <- ea_data |>
+  select(HID, clust, region, district, hhsize) |>
+  mutate(ea_id = as.character(clust),
+         code = paste0(sprintf('%02g', region), sprintf('%02g', district)),
+         farm_id = as.character(HID),
+         hh_size = hhsize) |>
   inner_join(
     plot_data |>
-      select(grappe, exploitation, s11bq01, s11bq02, s11bq03, s11bq04, s11bq07, s11bq11a) |>
-      rename(field_id = s11bq01, plot_id = s11bq02,
-             reported_area = s11bq11a, measured_plot = s11bq04, 
-             measured_plot_area = s11bq07, crop_code = s11bq03) |>
-      mutate(farm_id = as.character(paste0(sprintf('%04g', grappe), '_', sprintf('%04g', exploitation))),
-             field_id = paste0(farm_id, field_id),
+      select(hid, s8bq3, s8bq4a, s8bq4b, s8bq11) |>
+      rename(plot_id = s8bq3,
+             reported_area = s8bq4a, report_unit = s8bq4b,
+             plot_land_use = s8bq11) |>
+      mutate(farm_id = as.character(hid),
+             field_id = farm_id,
              plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
-             plot_land_use = case_when(crop_code != 999 ~ 'CULTIVATED',
-                                       crop_code == 999 ~ 'Uncultivated',
+             plot_land_use = case_when(plot_land_use == 1 ~ 'CULTIVATED',
+                                       plot_land_use == 2 ~ 'Uncultivated',
                                        .default = NA),
              reported_area = case_when(reported_area == 999999 ~ NA,
                                        reported_area == 99 ~ NA,
                                        .default = reported_area),
-             report_unit = 'ha',
-             reported_area_ha = reported_area,
-             measured_plot = case_when(measured_plot == 1 ~ 'GPS-measured',
-                                       measured_plot == 2 ~ 'not measured',
-                                       .default = NA),
-             measured_plot_area_ha = round(measured_plot_area, 4)) |>
+             reported_area_ha = case_when(report_unit == 1 ~ reported_area / 2.47, # acre
+                                          report_unit == 2 ~ reported_area / 4,    # pole,  1 pole = [ 1575,  3544 sq. m ] (CocoaSoils)
+                                          report_unit == 3 ~ reported_area / 10,   # rope
+                                          report_unit == 4 ~ reported_area / 2,    # plot
+                                          report_unit == 5 ~ reported_area,        # hectare
+                                          report_unit == 6 ~ NA,                   # not available on https://national-parameters.mofep.gov.gh/index.php?r=site%2Findex 
+                                          .default = NA),,
+             measured_plot = 'not measured', 
+             measured_plot_area_ha = NA) |>
       filter(plot_land_use == 'CULTIVATED') ) 
-
-ea_data <-ea_data |>
-  select(grappe, lon_dd_mod, lat_dd_mod) |>
-  rename(ea_id = grappe, x = lon_dd_mod, y = lat_dd_mod) |>
-  mutate(ea_id = as.character(ea_id))
 
 gha_raw <- inner_join(
   gha_raw,
-  ea_data |>
+  gha_dist_01 |>
+    mutate(country = 'Ghana',
+           year = 2017) )  |>
+  select(x, y, country, year, ea_id, farm_id, hh_size, field_id, plot_id,
+         reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
+write_csv(gha_dist_01, file = paste0(temp_west_af, '_ea_codes.csv'))
+write_csv(gha_raw, file = paste0('../data/processed/', 'Ghana_2017','_raw.csv'))
+#######################################################################
+# Get LSMS data from Ghana 2012
+
+gha_fold1 <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep('Ghana_2012', dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
+gha_zip <- dir(gha_fold1, full.names = T)[grep('\\.zip$', dir(gha_fold1))]
+temporary_dir <- '../data/processed/temporary'
+if(dir.exists(temporary_dir)) unlink(temporary_dir, recursive = T)
+dir.create(temporary_dir)
+unzip(gha_zip, exdir = temporary_dir)
+gha_fold2 <- dir(temporary_dir, recursive = T, full.names = T)[grep('STATA\\.zip$', dir(temporary_dir, recursive = T))]
+unzip(gha_fold2, exdir = temporary_dir)
+
+household_roster <- dir(temporary_dir, recursive = T)[grep('STATA\\/PARTA\\/SEC1\\.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+plot_roster <- dir(temporary_dir, recursive = T)[grep('STATA\\/PARTB\\/sec8b.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+ea_characteristics <- dir(temporary_dir, recursive = T)[grep('STATA/AGGREGATES/INCfromSec11b.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+
+hh_data <-haven::read_dta(paste0(temporary_dir, '/', household_roster))
+plot_data <- haven::read_dta(paste0(temporary_dir, '/', plot_roster))
+ea_data <- haven::read_dta(paste0(temporary_dir, '/', ea_characteristics))
+gha_dist_01 <- read_csv(paste0(temp_west_af, '_ea_codes.csv'))
+
+gha_raw <- ea_data |>
+  select(HID, clust, region, district, hhsize) |>
+  mutate(ea_id = as.character(clust),
+         code = paste0(sprintf('%02g', region), sprintf('%02g', district)),
+         farm_id = as.character(HID),
+         hh_size = hhsize) |>
+  inner_join(
+    plot_data |>
+      select(hid, s8bq3, s8bq4a, s8bq4b, s8bq11) |>
+      rename(plot_id = s8bq3,
+             reported_area = s8bq4a, report_unit = s8bq4b,
+             plot_land_use = s8bq11) |>
+      mutate(farm_id = as.character(hid),
+             field_id = farm_id,
+             plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
+             plot_land_use = case_when(plot_land_use == 1 ~ 'CULTIVATED',
+                                       plot_land_use == 2 ~ 'Uncultivated',
+                                       .default = NA),
+             reported_area = case_when(reported_area == 999999 ~ NA,
+                                       reported_area == 99 ~ NA,
+                                       .default = reported_area),
+             reported_area_ha = case_when(report_unit == 1 ~ reported_area / 2.47, # acre
+                                          report_unit == 2 ~ reported_area / 4,    # pole
+                                          report_unit == 3 ~ reported_area / 10,   # rope
+                                          report_unit == 4 ~ reported_area / 2,    # plot
+                                          report_unit == 5 ~ reported_area,        # hectare
+                                          report_unit == 6 ~ NA,                   # not available on https://national-parameters.mofep.gov.gh/index.php?r=site%2Findex 
+                                          .default = NA),,
+             measured_plot = 'not measured', 
+             measured_plot_area_ha = NA) |>
+      filter(plot_land_use == 'CULTIVATED') ) 
+
+gha_raw <- inner_join(
+  gha_raw,
+  gha_dist_01 |>
     mutate(country = 'Ghana',
            year = 2012) )  |>
   select(x, y, country, year, ea_id, farm_id, hh_size, field_id, plot_id,
          reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
 
 write_csv(gha_raw, file = paste0('../data/processed/', 'Ghana_2012','_raw.csv'))
+###########################################################################################
+# Rwanda 2020
+
+rwa_fold <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep('Rwanda_2020', dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
+rwa_zip <- dir(rwa_fold, full.names = T)[grep('.zip$', dir(rwa_fold))]
+rwa_file_list <- unzip(rwa_zip, list =T)$Name
+rwa_sel_files <- rwa_file_list[grep('.dta$', rwa_file_list, ignore.case = T)]
+temporary_dir <- '../data/processed/temporary'
+if(dir.exists(temporary_dir)) unlink(temporary_dir, recursive = T)
+dir.create(temporary_dir)
+unzip(rwa_zip, files = gsub('^./', '', rwa_sel_files), exdir = temporary_dir)
+
+household_roster <- dir(temporary_dir, recursive = T)[grep('Rwa_AHS_2020_Section_1.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+plot_roster <- dir(temporary_dir, recursive = T,)[grep('Rwa_AHS_2020_Section_2.1.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+ea_characteristics <- dir(temporary_dir, recursive = T,)[grep('Rwa_AHS_2020_Section_3.1.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+
+hh_data <-haven::read_dta(paste0(temporary_dir, '/', household_roster))
+plot_data <- haven::read_dta(paste0(temporary_dir, '/', plot_roster))
+ea_data <- haven::read_dta(paste0(temporary_dir, '/', ea_characteristics))
+
+rwa_gadm2 <- terra::vect(paste0(input_path, '/gadm/Rwanda/gadm/gadm41_RWA_2_pk.rds'))
+rwa_gadm2 <- bind_cols(
+  terra::crds(terra::centroids(rwa_gadm2)),
+  terra::as.data.frame(rwa_gadm2) |>
+    select(starts_with('NAME_'))
+)
+
+# rwa_gadm3 <- terra::vect(paste0(input_path, '/gadm/Rwanda/gadm/gadm41_RWA_3_pk.rds'))
+# rwa_gadm3 <- bind_cols(
+#   terra::crds(terra::centroids(rwa_gadm3)),
+#   terra::as.data.frame(rwa_gadm3) |>
+#     select(starts_with('NAME_'))
+# )
 
 
+rwa_raw <- hh_data |>
+  select(HHUID, s0q1, s0q2, s1q1) |>
+  mutate(ea_id = paste0(sprintf('%02g', s0q1), '_', sprintf('%02g', s0q2)),
+         farm_id = as.character(HHUID),
+         hh_size = s1q1) |>
+  distinct() |>
+  inner_join(
+    plot_data |>
+      select(HHUID, s2q5, s2q6, s2q10) |>
+      rename(farm_id = HHUID, plot_id = s2q5,
+             reported_area = s2q6, 
+             plot_land_use = s2q10) |>
+      mutate(farm_id = as.character(farm_id),
+             field_id = paste0(farm_id, '_'),
+             plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
+             plot_land_use = case_when(plot_land_use %in% c(1, 3) ~ 'CULTIVATED',
+                                       plot_land_use == 2 ~ 'rented out',
+                                       plot_land_use %in% 4:6 ~ 'uncultivated',
+                                       .default = NA),
+             reported_area = case_when(reported_area == 9999 ~ NA,
+                                       .default = reported_area),
+             report_unit = 'square_meters',
+             reported_area_ha = reported_area / 10000,
+             measured_plot = 'not measured', 
+             measured_plot_area_ha = NA) |>
+      filter(plot_land_use == 'CULTIVATED') ) 
 
+rwa_raw <- inner_join(
+  rwa_raw |>
+    mutate(NAME_2 = as.character(haven::as_factor(s0q2))),
+  rwa_gadm2 |>
+    mutate(country = 'Rwanda',
+           year = 2020) )  |>
+  select(x, y, country, year, ea_id, farm_id, hh_size, field_id, plot_id,
+         reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
+
+write_csv(rwa_raw, file = paste0('../data/processed/', 'Rwanda_2020','_raw.csv'))
+# ###########################################################################################
+# # Rwanda 2017
+# 
+# rwa_fold <- dir('../data/raw/web_scrapped/survey_data', full.names = T)[grep('Rwanda_2017', dir('../data/raw/web_scrapped/survey_data', full.names = T), ignore.case = T)]
+# rwa_zip <- dir(rwa_fold, full.names = T)[grep('\\(STATA\\)\\.zip$', dir(rwa_fold))]
+# rwa_file_list <- unzip(rwa_zip, list =T)$Name
+# rwa_sel_files <- rwa_file_list[grep('.dta$', rwa_file_list, ignore.case = T)]
+# temporary_dir <- '../data/processed/temporary'
+# if(dir.exists(temporary_dir)) unlink(temporary_dir, recursive = T)
+# dir.create(temporary_dir)
+# unzip(rwa_zip, files = gsub('^./', '', rwa_sel_files), exdir = temporary_dir)
+# 
+# household_roster <- dir(temporary_dir, recursive = T)[grep('STATA/S1_Household members characteristics.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+# plot_roster <- dir(temporary_dir, recursive = T,)[grep('STATA/S2_Land tenure and crops planted.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+# ea_characteristics <- dir(temporary_dir, recursive = T,)[grep('STATA/S0_General Information.dta', dir(temporary_dir, recursive = T), ignore.case = T)]
+# 
+# hh_data <-haven::read_dta(paste0(temporary_dir, '/', household_roster))
+# plot_data <- haven::read_dta(paste0(temporary_dir, '/', plot_roster))
+# ea_data <- haven::read_dta(paste0(temporary_dir, '/', ea_characteristics))
+# 
+# rwa_gadm2 <- terra::vect(paste0(input_path, '/gadm/Rwanda/gadm/gadm41_RWA_2_pk.rds'))
+# rwa_gadm2 <- bind_cols(
+#   terra::crds(terra::centroids(rwa_gadm2)),
+#   terra::as.data.frame(rwa_gadm2) |>
+#     select(starts_with('NAME_'))
+# )
+# 
+# rwa_raw <- hh_data |>
+#   select(idquest, s0q1, s0q2, s0q3, s0q4, s1q1) |>
+#   mutate(ea_id = paste0(sprintf('%02g', s0q1), '_', sprintf('%02g', s0q2)),
+#          farm_id = as.character(idquest),
+#          hh_size = s1q1) |>
+#   distinct() |>
+#   inner_join(
+#     plot_data |>
+#       select(idquest, s2q5, s2q6, s2q10) |>
+#       rename(farm_id = idquest, plot_id = s2q5,
+#              reported_area = s2q6, 
+#              plot_land_use = s2q10) |>
+#       mutate(farm_id = as.character(farm_id),
+#              field_id = farm_id,
+#              plot_id = paste0(field_id, '_',  sprintf('%02g', plot_id)),
+#              plot_land_use = case_when(plot_land_use %in% c(1, 3) ~ 'CULTIVATED',
+#                                        plot_land_use == 2 ~ 'rented out',
+#                                        plot_land_use %in% 4:6 ~ 'uncultivated',
+#                                        .default = NA),
+#              reported_area = case_when(reported_area == 9999 ~ NA,
+#                                        .default = reported_area),
+#              report_unit = 'square_meters',
+#              reported_area_ha = reported_area / 10000,
+#              measured_plot = 'not measured', 
+#              measured_plot_area_ha = NA) |>
+#       filter(plot_land_use == 'CULTIVATED') ) 
+# 
+# rwa_raw <- inner_join(
+#   rwa_raw |>
+#     mutate(NAME_2 = as.character(haven::as_factor(s0q2))),
+#   rwa_gadm2 |>
+#     mutate(country = 'Rwanda',
+#            year = 2017) )  |>
+#   select(x, y, country, year, ea_id, farm_id, hh_size, field_id, plot_id,
+#          reported_area, report_unit, reported_area_ha, plot_land_use, measured_plot, measured_plot_area_ha)
+# 
+# write_csv(rwa_raw, file = paste0('../data/processed/', 'Rwanda_2017','_raw.csv'))
+###########################################################################################
 unlink(temp_west_af, recursive = T)
 unlink(temporary_dir, recursive = T)
 ###########################################################################################

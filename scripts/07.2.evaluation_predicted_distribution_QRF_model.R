@@ -1,7 +1,6 @@
 # Evaluate robustness of RF model
 # main question: how well does a country be predicted in absence of training data
 
-
 # load packages
 require(tidyverse)
 
@@ -20,10 +19,26 @@ isocodes_ssa <- subset(isocodes, NAME=='Sudan' | UNREGION1=='Middle Africa' | UN
 isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME!='Mauritius' & NAME!='Mayotte' & NAME!='Réunion' & NAME!='Saint Helena' & NAME!='São Tomé and Príncipe' & NAME!='Seychelles') # keep the mainland + Madagascar only, remove islands
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 pal <- colorRampPalette(c('darkred', 'orange', 'gold', 'darkolivegreen3', 'darkgreen'))
+pal2 <- colorRampPalette(c('#c6dbef','#6baed6','#3182bd', '#08519c', '#08306b'))
+# force terra to use disk-based processing and 20% of RAM (Use this if R crashes because of limited memory)
+gc()
+# terra::terraOptions(memfrac = 0.2, todisk = T)
 
 # ------------------------------------------------------------------------------
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+#define the countries for which LSMS data are available
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+# ------------------------------------------------------------------------------
+# Prepare data rasters: lsms and predictions + virtual list of farm sizes
+stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
+rf_model_predictions <- terra::rast('../data/processed/rf_model_predictions_SSA.tif')
+names(rf_model_predictions) <- 'pred_farm_area_ha'
+qrf_model_predictions <- terra::rast('../data/processed/qrf_100quantiles_predictions_africa.tif')
+names(qrf_model_predictions) <- paste0('qrf_q', sprintf('%03g', 1:100))
+# Prepare lsms data
+lsms_spatial_with_country_names <-  readRDS('../data/processed/lsms_trimmed_95th_africa.rds') |>
+  select(x, y, country, farm_area_ha, cropland, cattle, pop, cropland_per_capita,
+         sand, slope, temperature, rainfall, maizeyield, market)
 
 # ------------------------------------------------------------------------
 # (Robert) defined a customized function to test whether observations fall in the quantile bins
@@ -54,12 +69,6 @@ f1_quantiles <- function(farmsizes, quantiles, MC = FALSE) {
 }
 
 
-# ------------------------------------------------------------------------------
-# Prepare data rasters: lsms and predictions
-lsms_spatial_with_country_names <- read.csv('../data/processed/lsms_spatial_with_country_names.csv')
-stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
-qrf_model_predictions <- terra::rast('../data/processed/qrf_100quantiles_predictions_africa.tif')
-names(qrf_model_predictions) <- paste0('qrf_q', sprintf('%03g', 1:100))
 
 emp_dist_10 <- lsms_spatial_with_country_names |>
   group_by(x, y, country) |>

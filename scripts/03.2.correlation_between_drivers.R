@@ -22,14 +22,15 @@ isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 
 #define the countries for which LSMS data are available
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 
 # shapefile of administrative units
 if(!dir.exists(paste0(input_path,'/gadm/Benin'))) dir.create(paste0(input_path,'/gadm/Benin'))
 if(!dir.exists(paste0(input_path,'/gadm/Burkina'))) dir.create(paste0(input_path,'/gadm/Burkina'))
 if(!dir.exists(paste0(input_path,'/gadm/Cote_d_Ivoire'))) dir.create(paste0(input_path,'/gadm/Cote_d_Ivoire'))
 if(!dir.exists(paste0(input_path,'/gadm/Ethiopia'))) dir.create(paste0(input_path,'/gadm/Ethiopia'))
+if(!dir.exists(paste0(input_path,'/gadm/Ghana'))) dir.create(paste0(input_path,'/gadm/Ghana'))
 if(!dir.exists(paste0(input_path,'/gadm/Guinea_Bissau'))) dir.create(paste0(input_path,'/gadm/Guinea_Bissau'))
 
 if(!dir.exists(paste0(input_path,'/gadm/Malawi'))) dir.create(paste0(input_path,'/gadm/Malawi'))
@@ -37,6 +38,7 @@ if(!dir.exists(paste0(input_path,'/gadm/Mali'))) dir.create(paste0(input_path,'/
 
 if(!dir.exists(paste0(input_path,'/gadm/Niger'))) dir.create(paste0(input_path,'/gadm/Niger'))
 if(!dir.exists(paste0(input_path,'/gadm/Nigeria'))) dir.create(paste0(input_path,'/gadm/Nigeria'))
+if(!dir.exists(paste0(input_path,'/gadm/Rwanda'))) dir.create(paste0(input_path,'/gadm/Rwanda'))
 if(!dir.exists(paste0(input_path,'/gadm/Senegal'))) dir.create(paste0(input_path,'/gadm/Senegal'))
 if(!dir.exists(paste0(input_path,'/gadm/Tanzania'))) dir.create(paste0(input_path,'/gadm/Tanzania'))
 if(!dir.exists(paste0(input_path,'/gadm/Togo'))) dir.create(paste0(input_path,'/gadm/Togo'))
@@ -48,19 +50,21 @@ ben_distr <- geodata::gadm('Benin', level=3, path=paste0(input_path,'/gadm/Benin
 bfa_distr <- geodata::gadm('Burkina Faso', level=3, path=paste0(input_path,'/gadm/Burkina'))
 civ_distr <- geodata::gadm('CIV', level=4, path=paste0(input_path,'/gadm/Cote_d_Ivoire'))
 eth_distr <- geodata::gadm('Ethiopia', level=3, path=paste0(input_path,'/gadm/Ethiopia'))
+gha_distr <- geodata::gadm('Ghana', level=2, path=paste0(input_path,'/gadm/Ghana'))
 gnb_distr <- geodata::gadm('GNB', level=2, path=paste0(input_path,'/gadm/Guinea_Bissau'))
 
 mwi_distr <- geodata::gadm('Malawi', level=3, path=paste0(input_path,'/gadm/Malawi'))
 mli_distr <- geodata::gadm('Mali', level=4, path=paste0(input_path,'/gadm/Mali'))
 ner_distr <- geodata::gadm('Niger', level=3, path=paste0(input_path,'/gadm/Niger'))
 nga_distr <- geodata::gadm('Nigeria', level=2, path=paste0(input_path,'/gadm/Nigeria'))
+rwa_distr <- geodata::gadm('Rwanda', level=4, path=paste0(input_path,'/gadm/Rwanda'))
 sen_distr <- geodata::gadm('Senegal', level=4, path=paste0(input_path,'/gadm/Senegal'))
 tza_distr <- geodata::gadm('Tanzania', level=3, path=paste0(input_path,'/gadm/Tanzania'))
 tgo_distr <- geodata::gadm('Togo', level=3, path=paste0(input_path,'/gadm/Togo'))
 uga_distr <- geodata::gadm('Uganda', level=4, path=paste0(input_path,'/gadm/Uganda'))
 zmb_distr <- geodata::gadm('Zambia', level=2, path=paste0(input_path,'/gadm/Zambia'))
 
-fourteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
+sixteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gha_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, rwa_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
 
 #############################################################################################################
 # retrieve all required spatial layers from input_path
@@ -69,7 +73,7 @@ stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
 
 # ------------------------------------------------------------------------------
 # lsms data
-load('../data/processed/lsms_trimmed_95th_africa.rdata') 
+lsms_spatial <- readRDS('../data/processed/lsms_trimmed_95th_africa.rds') 
 
 # keep only variables needed in the models
 lsms_spatial <- lsms_spatial |>
@@ -91,47 +95,4 @@ png('../output/graphs/drivers_correlation_matrix.png', height = 15, width = 20, 
 P00
 ggsave('../output/graphs/drivers_correlation_matrix.png')
 dev.off()
-
-# lsms_spatial_reduced <- lsms_spatial_for_all_analyses |>
-#   select(!c(elevation)) |>
-#   na.omit()
-# save(lsms_spatial_raw, lsms_spatial_reduced,
-#      file = '../data/processed/lsms_spatial_raw.rdata')
-
-# ## Run several loops like yhis one
-# # Remove one variable at time, and check model's performances against full model
-# deb <- Sys.time()
-# comp_var <- tibble()
-# train_control <- caret::trainControl(method = 'cv', number = 10, seeds = 2024)
-# tune_grid <- expand.grid(mtry = 4:5,                # in principle, I should start with 4:6       
-#                          splitrule = 'extratrees', # in principle, I should start with c('extratrees', 'variance')       
-#                          min.node.size = c(50, 55, 60))       # in principle, I should start with c(45, 50, 55, 60)        
-# 
-# for (i in names(lsms_spatial)[2:ncol(lsms_spatial)]){
-#   print(paste0('-----------------', i, '--------------------'))
-#   reduced_lsms <- lsms_spatial |>
-#     select(!i)
-#   rf_reduced <- caret::train(farm_area_ha ~ .,
-#                              data = reduced_lsms,
-#                              method = 'ranger',
-#                              trainControl = train_control,
-#                              importance  = 'permutation',
-#                              num.trees = 1500
-#   )
-#   rsq <- caret::postResample(predict(rf_reduced, reduced_lsms), reduced_lsms$farm_area_ha)[2]
-#   rmse <- caret::postResample(predict(rf_reduced, reduced_lsms), reduced_lsms$farm_area_ha)[1]
-#   one_row <- c(model = i, rsq = rsq, rmse = rmse)
-#   comp_var <- bind_rows(comp_var, one_row)
-#   assign(paste0('rf_reduced_', i), rf_reduced, envir = .GlobalEnv)
-# }
-# rf_full <- caret::train(farm_area_ha ~ .,
-#                         data = lsms_spatial,
-#                         method = 'ranger',
-#                         trainControl = train_control,
-#                         importance  = 'permutation',
-#                         num.trees = 1500
-# )
-# rsq <- caret::postResample(predict(rf_full, lsms_spatial), lsms_spatial$farm_area_ha)[2]
-# rmse <- caret::postResample(predict(rf_full, lsms_spatial), lsms_spatial$farm_area_ha)[1]
-# one_row <- c(model = 'full', rsq = rsq, rmse = rmse)
-# comp_var <- bind_rows(comp_var, one_row)
+################################################################################

@@ -5,15 +5,14 @@ rf_optim <- function(x) {
 
 # input and ouptut foders and files
 	input_path <- "data"
-	output_path <- "output/RFoptim"
-	dir.create(output_path, FALSE, TRUE) 
+	output_path <- "output"
 
 	treatment <- paste0(x[,1:3], collapse="-")
 	outfile <- paste0("RFoptim_", treatment, "_mbucket-", x$mbuck, ".Rds") 
-	if (file.exists(output_file)) return("file existed")
-
 	print(paste("-------- run =", outfile, "----------"))
+	dir.create(output_path, FALSE, FALSE) 
 	outfile <- file.path(output_path, outfile)
+	# if (file.exists(output_file)) return("file existed")
 
 	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.Rds"))
 
@@ -29,7 +28,7 @@ rf_optim <- function(x) {
 		farm_area_ha ~ .,
 		data = lsms_spatial,
 		method = "ranger",
-		# preProcess = c("center", "scale", "spatialSign"),
+		preProcess = c("center", "scale", "spatialSign"),
 		trControl = ctrl,
 		keep.inbag = TRUE,
 		tuneGrid = x[, 1:3],
@@ -39,8 +38,7 @@ rf_optim <- function(x) {
 		num.trees = 500
 	)
 	
-	out <- data.frame(x, rf_full_model$results, row.names=NULL)
-	saveRDS(out, file = outfile)
+	saveRDS(rf_full_model, file = outfile)
 	rf_full_model$results
 }
 
@@ -69,15 +67,9 @@ i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 if (i <= nrow(tune_grid)) {
 	r <- rf_optim(tune_grid[i,])
 	print(r)
-} else if (i == (nrow(tune_grid)+1)) {
-	ff <- list.files(path="output/RFoptim", pattern="\\.Rds$", full=TRUE)
-	x <- do.call(rbind, lapply(ff, readRDS))
-	saveRDS(x, "output/RF_optim.Rds")
 } else {
 	print("done (i > nrow(tune_grid)")
 }
 
 # slurm options
-#sbatch --array=1-4992 -p bmh --time=300 --mem=16G --job-name=farms ~/farm/clusterR.sh scripts/05.1.RF_model_optim.R
-
-
+#sbatch --array=1-4992 -p bmh --time=1200 --mem=32G --job-name=farms ~/farm/clusterR.sh scripts/05.1.RF_model_optim.R

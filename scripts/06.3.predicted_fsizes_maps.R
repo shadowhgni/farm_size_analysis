@@ -18,15 +18,16 @@ isocodes_ssa <- subset(isocodes, NAME=='Sudan' | UNREGION1=='Middle Africa' | UN
 isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME!='Mauritius' & NAME!='Mayotte' & NAME!='Réunion' & NAME!='Saint Helena' & NAME!='São Tomé and Príncipe' & NAME!='Seychelles') # keep the mainland + Madagascar only, remove islands
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 pal <- colorRampPalette(c('darkred', 'orange', 'gold', 'darkolivegreen3', 'darkgreen'))
-# force terra to use disk-based processing and 50% of RAM (Use this if R crashes because of limited memory)
-terra::terraOptions(memfrac = 0.8, todisk = T, verbose = F)
+# force terra to use disk-based processing and 20% of RAM (Use this if R crashes because of limited memory)
+terra::terraOptions(memfrac = 0.2, todisk = T, verbose = F)
 
 # ------------------------------------------------------------------------------
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+#define the countries for which LSMS data are available
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 # ------------------------------------------------------------------------------
 # Prepare data rasters: lsms and predictions
-lsms_spatial_with_country_names <- read.csv('../data/processed/lsms_spatial_with_country_names.csv')
+lsms_spatial <-  readRDS('../data/processed/lsms_trimmed_95th_africa.rds') # this was retrieved from '03.1.pooled_data_for_analysis.r'
 stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
 rf_model_predictions <- terra::rast('../data/processed/rf_predictions_africa.tif')
 qrf_model_predictions <- terra::rast('../data/processed/qrf_100quantiles_predictions_africa.tif')
@@ -73,6 +74,51 @@ legend(-15, -10, bty = 'y', cex = 0.7, ncol = 1, box.col = 'white',
 terra::plot(ssa, axes = F, add = T)
 dev.off()
 terra::writeRaster(rf_model_predictions, '../data/processed/rf_model_predictions_SSA.tif', overwrite  =  T)
+
+lsms_spatial$pred_oob <- terra::extract(rf_model_predictions, lsms_spatial[, c('x', 'y')])[, 2] ############
+r2 <- with(lsms_spatial, round(cor(farm_area_ha, pred_oob, use = 'pairwise.complete.obs' )^2, 2))
+
+P00 <- ggplot(lsms_spatial, aes(farm_area_ha, pred_oob)) +
+  geom_density_2d_filled(bins = 9) +
+  geom_abline(slope = 1, linewidth = 0.8) +
+  geom_abline(slope = 0.5, linewidth = 0.8, linetype = 2) +
+  geom_abline(slope = 2, linewidth = 0.8, linetype = 2) +
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 2)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 2)) +
+  scale_fill_brewer() +
+  labs(x= 'Reported farm size (ha)', y = 'Predicted farm size (ha)',
+       title = NULL, fill = 'Density of points') +
+  annotate('text', x = 1.75, y = 1.95, label = bquote(R^2== .(r2)) ) +
+  annotate('text', x = 0.6, y = 1.5, label = '2:1' ) +
+  annotate('text', x = 1.4, y = 1.5, label = '1:1' ) +
+  annotate('text', x = 1.4, y = 0.8, label = '1:2' ) +
+  theme_test()
+P00
+png(paste0('../output/graphs/africa_pred_obs.png'), height = 5, width = 7.5, units = 'in', res = 600)
+P00
+ggsave(paste0('../output/graphs/africa_pred_obs.png'))
+dev.off()
+
+# ------------------------------------------------------------------------------
+# variable importance graph (from output of the RF model in Python)
+var_imp <- read.csv('../output/tables/etr_variable_importance.csv') |>
+  arrange(- Importance) |>
+  mutate(Variable = factor(Variable, levels = var_imp$Variable))
+# var_imp$Variable <- factor(var_imp$Variable, levels = var_imp$Variable, ordered = F)
+
+P00 <- ggplot(var_imp , aes(Variable, Importance)) + 
+  geom_col(colour = 'grey') + 
+  scale_y_continuous(expand = c(0, 0)) + 
+  coord_flip() + 
+  theme_test() + 
+  theme(axis.ticks.y = element_blank())
+P00
+png(paste0('../output/graphs/variable_importance_africa.png'), height = 5, width = 7.5, units = 'in', res = 600)
+P00
+ggsave(paste0('../output/graphs/variable_importance_africa.png'))
+dev.off()
+
+
 # ------------------------------------------------------------------------------
 # predict farm size quantiles (0.1 and 0.9) all over SSA, based on the random forest model for the continent
 qrf_model_predictions <- qrf_model_predictions * terra::resample(mask_forest_ssa, qrf_model_predictions)

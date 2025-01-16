@@ -22,7 +22,7 @@ required_packages <- c('tidyverse', 'here', 'curl',
                        'afrilearndata', 'terra', 'geodata',
                        'caret', 'gbm', 'xgboost', 'kernlab', 'e1071',
                        'randomForest', 'quantregForest', 'ranger', 
-                       'XNomial', 'EnvStats', 'fitdistrplus')
+                       'XNomial', 'EnvStats', 'fitdistrplus', 'ineq')
 
 # Call the function with the list of packages
 install_me(required_packages)

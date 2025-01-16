@@ -18,29 +18,25 @@ isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 pal <- colorRampPalette(c('darkred', 'orange', 'gold', 'darkolivegreen3', 'darkgreen'))
 pal2 <- colorRampPalette(c('#c6dbef','#6baed6','#3182bd', '#08519c', '#08306b'))
-# force terra to use disk-based processing and 80% of RAM (Use this if R crashes because of limited memory)
-terra::terraOptions(memfrac = 0.8, todisk = T, verbose = F)
+# force terra to use disk-based processing and 50% of RAM (Use this if R crashes because of limited memory)
+terra::terraOptions(memfrac = 0.5, todisk = T, verbose = F)
 
 # ------------------------------------------------------------------------------
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+#define the countries for which LSMS data are available
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 # ------------------------------------------------------------------------------
 # Prepare data rasters: lsms and predictions
 stacked <- terra::rast('../data/processed/stacked_rasters_africa.tif')
+all_cropland_mask <- terra::rast(paste0(input_path, '/landuse/landuse/all_cropland_mask.tif'))
+
 rf_model_predictions <- terra::rast('../data/processed/rf_model_predictions_SSA.tif')
 names(rf_model_predictions) <- 'pred_farm_area_ha'
 qrf_model_predictions <- terra::rast('../data/processed/qrf_100quantiles_predictions_africa.tif')
 names(qrf_model_predictions) <- paste0('qrf_q', sprintf('%03g', 1:100))
 
 # Prepare lsms data
-load('../data/processed/lsms_trimmed_95th_africa.rdata') # this was retrieved from '03.1.pooled_data_for_analysis.r'
-# cluster datapoints in Zambia
-lsms_spatial <- lsms_spatial |>
-  mutate(x = case_when(country == 'Zambia' ~ round(x, 1),
-                       .default = x),
-         y = case_when(country == 'Zambia' ~ round(y, 1),
-                       .default = y))
-
+lsms_spatial <-  readRDS('../data/processed/lsms_trimmed_95th_africa.rds') # this was retrieved from '03.1.pooled_data_for_analysis.r'
 
 # Load Sarah's data
 sarah_nb_farms <- readxl::read_excel('../data/raw/web_scrapped/sarah_lowder/1-s2.0-S0305750X2100067X-mmc3.xlsx', skip = 1)
@@ -56,35 +52,37 @@ ben_distr <- geodata::gadm('Benin', level=3, path=paste0(input_path,'/gadm/Benin
 bfa_distr <- geodata::gadm('Burkina Faso', level=3, path=paste0(input_path,'/gadm/Burkina'))
 civ_distr <- geodata::gadm('CIV', level=4, path=paste0(input_path,'/gadm/Cote_d_Ivoire'))
 eth_distr <- geodata::gadm('Ethiopia', level=3, path=paste0(input_path,'/gadm/Ethiopia'))
+gha_distr <- geodata::gadm('Ghana', level=2, path=paste0(input_path,'/gadm/Ghana'))
 gnb_distr <- geodata::gadm('GNB', level=2, path=paste0(input_path,'/gadm/Guinea_Bissau'))
 
 mwi_distr <- geodata::gadm('Malawi', level=3, path=paste0(input_path,'/gadm/Malawi'))
 mli_distr <- geodata::gadm('Mali', level=4, path=paste0(input_path,'/gadm/Mali'))
 ner_distr <- geodata::gadm('Niger', level=3, path=paste0(input_path,'/gadm/Niger'))
 nga_distr <- geodata::gadm('Nigeria', level=2, path=paste0(input_path,'/gadm/Nigeria'))
+rwa_distr <- geodata::gadm('Rwanda', level=4, path=paste0(input_path,'/gadm/Rwanda'))
 sen_distr <- geodata::gadm('Senegal', level=4, path=paste0(input_path,'/gadm/Senegal'))
 tza_distr <- geodata::gadm('Tanzania', level=3, path=paste0(input_path,'/gadm/Tanzania'))
 tgo_distr <- geodata::gadm('Togo', level=3, path=paste0(input_path,'/gadm/Togo'))
-uga_distr <- geodata::gadm('Uganda', level=4, path=paste0(input_path,'/gadm/Uganda/level1'))
+uga_distr <- geodata::gadm('Uganda', level=4, path=paste0(input_path,'/gadm/Uganda'))
 zmb_distr <- geodata::gadm('Zambia', level=2, path=paste0(input_path,'/gadm/Zambia'))
 
-fourteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
+sixteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gha_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, rwa_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
 
 # Getting rasters from the polygons vectors
-fourteen_count_grid <- terra::rast(fourteen_count_distr, nrow = 10000, ncol = 10000)
-fourteen_count_rast1 <- terra::rasterize(fourteen_count_distr, fourteen_count_grid, field = c('COUNTRY') )
-fourteen_count_rast1 <- terra::resample(fourteen_count_rast1, stacked)
-names(fourteen_count_rast1) <- 'NAME_0'
-fourteen_count_rast2 <- terra::rasterize(fourteen_count_distr, fourteen_count_grid, field = c('NAME_1') )
-fourteen_count_rast2 <- terra::resample(fourteen_count_rast2, stacked)
-fourteen_count_rast <- c(fourteen_count_rast1, fourteen_count_rast2)
+sixteen_count_grid <- terra::rast(sixteen_count_distr, nrow = 2000, ncol = 2000)
+sixteen_count_rast1 <- terra::rasterize(sixteen_count_distr, sixteen_count_grid, field = c('COUNTRY') )
+sixteen_count_rast1 <- terra::resample(sixteen_count_rast1, stacked)
+names(sixteen_count_rast1) <- 'NAME_0'
+sixteen_count_rast2 <- terra::rasterize(sixteen_count_distr, sixteen_count_grid, field = c('NAME_1') )
+sixteen_count_rast2 <- terra::resample(sixteen_count_rast2, stacked)
+sixteen_count_rast <- c(sixteen_count_rast1, sixteen_count_rast2)
 
-ssa_grid <- terra::rast(ssa, nrow = 20000, ncol = 20000)
+ssa_grid <- terra::rast(ssa, nrow = 2000, ncol = 2000)
 ssa_rast <- terra::rasterize(ssa, ssa_grid, field = 'NAME_0')
 ssa_rast <- terra::resample(ssa_rast, stacked)
 
 # correct rf_predicted with the mask of cropland based on SPAM, not geosurvey # Not needed, since cropland started with spam
-rf_pred <- c(fourteen_count_rast2, ssa_rast, rf_model_predictions)
+rf_pred <- c(sixteen_count_rast2, ssa_rast, rf_model_predictions)
 country_predicted <- terra::as.data.frame(rf_pred) |>
   rename(country = NAME_0, region = NAME_1)
   
@@ -94,7 +92,7 @@ summary_country <- country_predicted |>
   summarize(mean_pred = mean(pred_farm_area_ha, na.rm = T) ) # Use quantile regression for median and variability
 
 gadm_predicted_level1 <- country_predicted |>                # GADM level 1
-  filter(!is.na(pred_farm_area_ha), !is.na(region), country %in% fourteen_countries) |>
+  filter(!is.na(pred_farm_area_ha), !is.na(region), country %in% sixteen_countries) |>
   group_by(country, region) |>
   summarize(mean_pred = mean(pred_farm_area_ha, na.rm = T))
 
@@ -109,12 +107,12 @@ summary_gadm_1 <- gadm_level1 |>
   group_by(country, gadm_1) |>
   summarize(farm_area_ha = mean(farm_area_ha, na.rm = T), mean_pred = unique(mean_pred), n_obs = n())
 
-summary_fourteen_country <- gadm_level1 |>
+summary_sixteen_country <- gadm_level1 |>
   group_by(country) |>
   summarize(farm_area_ha = mean(farm_area_ha, na.rm = T), mean_pred = mean(mean_pred, na.rm = T), n_obs = n())
 
 r2_gadm_1 <- round(with(summary_gadm_1, cor(farm_area_ha, mean_pred)^2), 2)
-r2_country <- round(with(summary_fourteen_country, cor(farm_area_ha, mean_pred)^2), 2)
+r2_country <- round(with(summary_sixteen_country, cor(farm_area_ha, mean_pred)^2), 2)
 
 P00 <- ggplot(summary_gadm_1, aes(farm_area_ha, mean_pred)) +
   geom_point(aes(colour = country, size = n_obs)) +
@@ -137,7 +135,7 @@ P00
 ggsave('../output/graphs/gadm_1al_pred_obs.png')
 dev.off()
 
-P01 <- ggplot(summary_fourteen_country, aes(farm_area_ha, mean_pred)) +
+P01 <- ggplot(summary_sixteen_country, aes(farm_area_ha, mean_pred)) +
   geom_point(aes(colour = country, size = n_obs)) +
   geom_abline(intercept = 0, slope = 1, linewidth = 0.8) + 
   geom_abline(intercept = 0, slope = 0.5, linewidth = 0.8, linetype = 'dashed') + 
@@ -166,8 +164,20 @@ ssa_nb_farms <- sarah_nb_farms |>
   mutate(nb_farms = as.numeric(nb_farms),
          census_year = as.numeric(substr(census_year, nchar(census_year) - 3, nchar(census_year))))
 
-calc_nb_farms <- c(stacked$cropland, rf_model_predictions, ssa_rast)
-names(calc_nb_farms) <- c('cropland', 'pred_farm_area_ha', 'country')
+# calc_nb_farms <- c(stacked$cropland, # add avg of 4 croplands
+#                    terra::resample(terra::mean(all_cropland_mask$`SPAM 2010`, all_cropland_mask$`SPAM 2017`, 
+#                                                all_cropland_mask$`SPAM 2020`, all_cropland_mask$`ESA 2020`),
+#                                    stacked),
+#                    rf_model_predictions, ssa_rast)
+calc_nb_farms <- c(stacked$cropland, # add avg of all croplands
+                   terra::resample(terra::mean(all_cropland_mask$`SPAM 2010`, all_cropland_mask$`SPAM 2017`, 
+                                               all_cropland_mask$`SPAM 2020`, all_cropland_mask$`ESA 2020`, 
+                                               all_cropland_mask$`GLAD 2019`, all_cropland_mask$`GEOSURVEY 2015`),
+                                   stacked),
+                   rf_model_predictions, ssa_rast)
+
+
+names(calc_nb_farms) <- c('spam_2017', 'cropland', 'pred_farm_area_ha', 'country')
 calc_nb_farms$nb_farms <- calc_nb_farms$cropland / calc_nb_farms$pred_farm_area_ha
 
 summary_nb_farms <- terra::as.data.frame(calc_nb_farms) |>
@@ -179,10 +189,20 @@ comp_nb_farms <- summary_nb_farms |>
   select(country, estim_nb_farms) |>
   inner_join(ssa_nb_farms)
 
+write.csv(comp_nb_farms, '../output/tables/estimated_number_of_farms_in_ssa.csv', row.names = F)
+# comparing aggregates with Sarah
+comp_nb_farms |> 
+  filter(!is.na(estim_nb_farms), !is.na(nb_farms)) |> 
+  summarize(across(c(estim_nb_farms, nb_farms), ~ sum(.)))
+
+# the total number of farm is
+comp_nb_farms |> 
+  summarize(across(c(estim_nb_farms, nb_farms), ~ sum(., na.rm = T)))
+
 r2_sarah <- round(with(na.omit(comp_nb_farms), cor(nb_farms, estim_nb_farms)^2), 2)
 r2_sarah
 round(with(na.omit(comp_nb_farms |> filter(!country %in% c('Ethiopia', 'Nigeria'))), cor(nb_farms, estim_nb_farms)^2), 2)
-# When Nigeria and Ethiopia are removed, Rsquare drops to 0.48 instead of 0.87!
+# When Nigeria and Ethiopia are removed, Rsquare drops to 0.5 instead of 0.9!
 
 P02 <- ggplot(comp_nb_farms, 
               aes(nb_farms/1000000, estim_nb_farms/1000000, 
@@ -230,8 +250,8 @@ P03 <- ggplot(comp_nb_farms,
   geom_text(aes(label = country), vjust = -0.5, size = 2.5) +
   scale_x_continuous(expand = c(0.1, 0.1), limits = c(0.1, 24), trans = 'log10') +
   scale_y_continuous(expand = c(0.1, 0.1), limits = c(0.1, 24), trans = 'log10') +
-  labs(x = 'Number of farms based on census (log scale)', y = 'Estim. number of farms based on farm size predictions (log scale)', colour = 'Census year (end)') +
-  annotate('text', x = 18, y = 22, label = bquote(R^2== .(r2_sarah)) ) + 
+  labs(x = 'Number of farms based on census, million (log scale)', y = 'Estim. nb. of farms based on predictions, million (log scale)', colour = 'Census year (end)') +
+  annotate('text', x = 13, y = 24, label = bquote(R^2== .(r2_sarah)) ) + 
   theme_test() +
   theme(legend.position = c(0.8, 0.25),
         legend.text = element_text(hjust = 1))

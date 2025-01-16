@@ -21,8 +21,9 @@ isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 pal <- colorRampPalette(c('darkred', 'orange', 'gold', 'darkolivegreen3', 'darkgreen'))
 
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+#define the countries for which LSMS data are available
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 # ------------------------------------------------------------------------------
 # I think an overall thin plate spline model (at continental scale) is not meaningful as it would be interpolation over large distances between countries
 # define a TPS method for caret
@@ -44,7 +45,7 @@ tps_model <- list(
   prob = NULL
 )
 # Prepare data: load lsms data as my_lsms (lsms with geometry as data.frame)
-load('../data/processed/lsms_trimmed_95th_africa.rdata') # this was retrieved from '03.1.pooled_data_for_analysis.r'
+lsms_spatial <- readRDS('../data/processed/lsms_trimmed_95th_africa.rds') # this was retrieved from '03.1.pooled_data_for_analysis.r'
 
 # keep only variables needed in the models
 lsms_spatial <- lsms_spatial |>
@@ -412,7 +413,7 @@ compare_country_models <- function(my_country){
 # Initialization and function application (run this chunk of 4 lines at once)
 deb <- Sys.time()
 mult_rsq <- data.frame()
-sapply(fourteen_countries, compare_country_models)
+sapply(sixteen_countries, compare_country_models)
 fin <- Sys.time() - deb
 print(fin)
 
@@ -443,10 +444,10 @@ model_perf_wide$model <- factor(model_perf_wide$model,
                                 ))
 model_perf_wide <- model_perf_wide |>
   arrange(model)
-save(mult_rsq1, model_perf, model_perf_wide,
-     results_Benin, results_Burkina, results_Cote_d_Ivoire, 
-     results_Ethiopia, results_Guinea_Bissau, results_Malawi,results_Mali,
-      results_Niger, results_Nigeria, results_Senegal, results_Tanzania, 
-     results_Togo, results_Uganda, results_Zambia, 
-     file = '../data/processed/compare_country_models.Rdata')
-write.csv(model_perf_wide, file = '../output/tables/comparison_ML_models_per_country.csv')
+saveRDS(list(mult_rsq1, model_perf, model_perf_wide,
+             results_Benin, results_Burkina, results_Cote_d_Ivoire, 
+             results_Ethiopia, results_Guinea_Bissau, results_Malawi,results_Mali,
+             results_Niger, results_Nigeria, results_Senegal, results_Tanzania, 
+             results_Togo, results_Uganda, results_Zambia), 
+        file = '../data/processed/compare_country_models.RDS')
+write.csv(model_perf_wide, file = '../output/tables/comparison_ML_models_per_country.csv', row.names = F)

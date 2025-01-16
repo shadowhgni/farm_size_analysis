@@ -75,10 +75,8 @@ all_lsms_raw_data <- all_lsms_raw_data |>
          measured_plot_area_ha = case_when(measured_plot_area_ha > 10 & reported_area_ha < 1 ~ measured_plot_area_ha / 10000,     # implicit confusion of unit (sq_meters to ha) for small plots
                                            measured_plot_area_ha > 1000 & reported_area_ha >= 1 ~ measured_plot_area_ha / 10000,  # implicit confusion of unit (sq_meters to ha) for large plots
                                            .default = measured_plot_area_ha),
-         measured_plot_area_ha = case_when(measured_plot_area_ha > 50 ~ NA,                                                       # discard all measured plots of more than 50ha 
-                                           .default = measured_plot_area_ha),                                                     # try the quantile approach (90th) or boxplot IQR per province for the farm size 
-         reported_area_ha = case_when(reported_area_ha > 50 ~ NA,                                                                 # discard all reported plots of more than 20ha 
-                                      .default = reported_area_ha)
+         measured_plot_area_ha = case_when(measured_plot_area_ha > 100 ~ NA,                                                       # discard all measured plots of more than 50ha 
+                                           .default = measured_plot_area_ha)                                                      # try the quantile approach (90th) or boxplot IQR per province for the farm size 
          )
 
 # pm <- ggplot(all_lsms_raw_data, aes(reported_area_ha, measured_plot_area_ha)) +
@@ -109,6 +107,7 @@ all_lsms_raw_data <- all_lsms_raw_data |>
 lsms_raw_data <- all_lsms_raw_data |>
   mutate(plot_area_ha = case_when(is.na(measured_plot_area_ha) ~ reported_area_ha,
                                   measured_plot_area_ha <= 0 ~ reported_area_ha,
+                                  measured_plot_area_ha / reported_area_ha > 5 & measured_plot_area_ha > 20 ~ reported_area_ha,
                                   .default = measured_plot_area_ha))
 
 excluded_farms <- lsms_raw_data |>
@@ -206,4 +205,4 @@ load('../data/raw/received/lsms_and_geodata.rda')
 write_csv(all_countries, file = '../data/processed/lsms_number_of_farms_all_inclusive.csv')
 write_csv(all_lsms_raw_data, file = '../data/processed/lsms_raw_data.csv')
 write_csv(lsms_and_zambia, file = '../data/processed/lsms_and_zambia.csv')
-save(all_countries, lsms_farm_size, lsms_farm_size_strict, lsms_and_zambia, file = '../data/processed/lsms_and_zambia.rdata')
+saveRDS(list(all_countries, lsms_farm_size, lsms_farm_size_strict, lsms_and_zambia), file = '../data/processed/lsms_and_zambia.rds')

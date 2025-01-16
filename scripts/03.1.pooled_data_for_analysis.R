@@ -22,14 +22,15 @@ isocodes_ssa <- subset(isocodes_ssa, NAME!='Cabo Verde' & NAME!='Comoros' & NAME
 ssa <- subset(country, country$GID_0 %in% isocodes_ssa$ISO3)
 
 #define the countries for which LSMS data are available
-fourteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
-fourteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
+sixteen_countries <- c('Benin', 'Burkina', 'Cote_d_Ivoire', 'Ethiopia', 'Ghana', 'Guinea_Bissau', 'Malawi', 'Mali', 'Niger', 'Nigeria', 'Rwanda','Senegal', 'Tanzania', 'Togo', 'Uganda', 'Zambia')
+sixteen_country_codes <- c('BEN', 'BFA', 'CIV', 'ETH', 'GHA', 'GNB', 'MWI', 'MLI', 'NER', 'NGA', 'RWA', 'SEN', 'TZA', 'TGO', 'UGA', 'ZMB')
 
 # shapefile of administrative units
 if(!dir.exists(paste0(input_path,'/gadm/Benin'))) dir.create(paste0(input_path,'/gadm/Benin'))
 if(!dir.exists(paste0(input_path,'/gadm/Burkina'))) dir.create(paste0(input_path,'/gadm/Burkina'))
 if(!dir.exists(paste0(input_path,'/gadm/Cote_d_Ivoire'))) dir.create(paste0(input_path,'/gadm/Cote_d_Ivoire'))
 if(!dir.exists(paste0(input_path,'/gadm/Ethiopia'))) dir.create(paste0(input_path,'/gadm/Ethiopia'))
+if(!dir.exists(paste0(input_path,'/gadm/Ghana'))) dir.create(paste0(input_path,'/gadm/Ghana'))
 if(!dir.exists(paste0(input_path,'/gadm/Guinea_Bissau'))) dir.create(paste0(input_path,'/gadm/Guinea_Bissau'))
 
 if(!dir.exists(paste0(input_path,'/gadm/Malawi'))) dir.create(paste0(input_path,'/gadm/Malawi'))
@@ -37,6 +38,7 @@ if(!dir.exists(paste0(input_path,'/gadm/Mali'))) dir.create(paste0(input_path,'/
 
 if(!dir.exists(paste0(input_path,'/gadm/Niger'))) dir.create(paste0(input_path,'/gadm/Niger'))
 if(!dir.exists(paste0(input_path,'/gadm/Nigeria'))) dir.create(paste0(input_path,'/gadm/Nigeria'))
+if(!dir.exists(paste0(input_path,'/gadm/Rwanda'))) dir.create(paste0(input_path,'/gadm/Rwanda'))
 if(!dir.exists(paste0(input_path,'/gadm/Senegal'))) dir.create(paste0(input_path,'/gadm/Senegal'))
 if(!dir.exists(paste0(input_path,'/gadm/Tanzania'))) dir.create(paste0(input_path,'/gadm/Tanzania'))
 if(!dir.exists(paste0(input_path,'/gadm/Togo'))) dir.create(paste0(input_path,'/gadm/Togo'))
@@ -48,30 +50,31 @@ ben_distr <- geodata::gadm('Benin', level=3, path=paste0(input_path,'/gadm/Benin
 bfa_distr <- geodata::gadm('Burkina Faso', level=3, path=paste0(input_path,'/gadm/Burkina'))
 civ_distr <- geodata::gadm('CIV', level=4, path=paste0(input_path,'/gadm/Cote_d_Ivoire'))
 eth_distr <- geodata::gadm('Ethiopia', level=3, path=paste0(input_path,'/gadm/Ethiopia'))
+gha_distr <- geodata::gadm('Ghana', level=2, path=paste0(input_path,'/gadm/Ghana'))
 gnb_distr <- geodata::gadm('GNB', level=2, path=paste0(input_path,'/gadm/Guinea_Bissau'))
 
 mwi_distr <- geodata::gadm('Malawi', level=3, path=paste0(input_path,'/gadm/Malawi'))
 mli_distr <- geodata::gadm('Mali', level=4, path=paste0(input_path,'/gadm/Mali'))
 ner_distr <- geodata::gadm('Niger', level=3, path=paste0(input_path,'/gadm/Niger'))
 nga_distr <- geodata::gadm('Nigeria', level=2, path=paste0(input_path,'/gadm/Nigeria'))
+rwa_distr <- geodata::gadm('Rwanda', level=4, path=paste0(input_path,'/gadm/Rwanda'))
 sen_distr <- geodata::gadm('Senegal', level=4, path=paste0(input_path,'/gadm/Senegal'))
 tza_distr <- geodata::gadm('Tanzania', level=3, path=paste0(input_path,'/gadm/Tanzania'))
 tgo_distr <- geodata::gadm('Togo', level=3, path=paste0(input_path,'/gadm/Togo'))
 uga_distr <- geodata::gadm('Uganda', level=4, path=paste0(input_path,'/gadm/Uganda'))
 zmb_distr <- geodata::gadm('Zambia', level=2, path=paste0(input_path,'/gadm/Zambia'))
 
-fourteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
+sixteen_count_distr <- rbind(ben_distr, bfa_distr, civ_distr, eth_distr, gha_distr, gnb_distr, mwi_distr, mli_distr, ner_distr, nga_distr, rwa_distr, sen_distr,  tza_distr, tgo_distr, uga_distr, zmb_distr)
 
 #############################################################################################################
 # retrieve all required spatial layers from input_path
 stacked_00 <- terra::rast('../data/processed/all_predictors.tif')
 
-
 # ------------------------------------------------------------------------------
 # lsms data
-load('../data/processed/lsms_and_zambia.rdata') # this is the updated dataset with 14 countries surveyed
+lsms_and_zambia <- read.csv('../data/processed/lsms_and_zambia.csv') # this is the updated dataset with 16 countries surveyed
 lsms <- lsms_and_zambia |>
-  filter(!is.na(farm_area_ha), !is.na(x), !is.na(y), !(x == 0 & y == 0) )  # get rid of farms whose size or GPS coord. are not available
+  filter(!is.na(farm_area_ha), farm_area_ha > 0, !is.na(x), !is.na(y), !(x == 0 & y == 0) )  # get rid of farms whose size or GPS coord. are not available
 lsms_00 <- lsms # backup the whole initial dataset (LSMS + Zambia) 
 
 # Restrict data to 2008-2021 years  (Malawi_2004 and Uganda_2005 are excluded)
@@ -85,7 +88,7 @@ summary_lsms <- lsms |>
   summarize(n_farms = n())
 
 small_waves_lsms <- summary_lsms |>
-  filter(n_farms < 500 )
+  filter(n_farms < 700 )                   # arbitrary threshold
 
 lsms <- lsms |>
   anti_join(small_waves_lsms |>
@@ -95,13 +98,13 @@ lsms <- lsms |>
 length(unique(paste0(lsms$x, '_', lsms$y))) 
 
 # Display the number of unique GPS points (EAs) in a particular country
-nb_pts <- function(p)length(unique(paste0(lsms$x[lsms$country == p], '_', lsms$y[lsms$country == p]))); sapply(fourteen_countries, nb_pts) 
+nb_pts <- function(p)length(unique(paste0(lsms$x[lsms$country == p], '_', lsms$y[lsms$country == p]))); sapply(sixteen_countries, nb_pts) 
 
 # Display the number of unique farms in a particular country
-nb_farms <- function(p)length(unique(lsms$farm_id[lsms$country == p])); sapply(fourteen_countries, nb_farms) 
+nb_farms <- function(p)length(unique(lsms$farm_id[lsms$country == p])); sapply(sixteen_countries, nb_farms) 
 
 # Display the number of unique observations (farm x year) in a particular country
-nb_obs <- function(p)length(unique(paste0(lsms$country[lsms$country == p], '_', lsms$year[lsms$country == p], '_', lsms$farm_id[lsms$country == p]))); sapply(fourteen_countries, nb_obs) 
+nb_obs <- function(p)length(unique(paste0(lsms$country[lsms$country == p], '_', lsms$year[lsms$country == p], '_', lsms$farm_id[lsms$country == p]))); sapply(sixteen_countries, nb_obs) 
 
 # Assign unique farm IDs to avoid confusion across countries and  across years
 # lsms$farm_id <- paste0('id_', sprintf('%05.0f', as.numeric(rownames(terra::as.data.frame(lsms)))) )  # modify farm_id to have uniform ID structure across countries
@@ -114,11 +117,11 @@ lsms$gadm_4 <- lsms$gadm_3 <- lsms$gadm_2 <- lsms$gadm_1 <- lsms$gadm_0 <- NA
 lsms <- terra::vect(lsms, geom = c('x', 'y'), crs = 4326)  
 
 # Assign admin div names and unique farm ID to all observations in the dataset
-lsms$gadm_0 <- terra::extract(fourteen_count_distr[, 'GID_0'], lsms)$GID_0                                   # create region names using the country name of GADM division
-lsms$gadm_1 <- terra::extract(fourteen_count_distr[, 'NAME_1'], lsms)$NAME_1                                 # create region names using the level 1 of GADM division
-lsms$gadm_2 <- terra::extract(fourteen_count_distr[, 'NAME_2'], lsms)$NAME_2                                 # create region names using the level 2 of GADM division
-lsms$gadm_3 <- terra::extract(fourteen_count_distr[, 'NAME_3'], lsms)$NAME_3                                 # create region names using the level 3 of GADM division
-lsms$gadm_4 <- terra::extract(fourteen_count_distr[, 'NAME_4'], lsms)$NAME_4                                 # create region names using the level 4 of GADM division
+lsms$gadm_0 <- terra::extract(sixteen_count_distr[, 'GID_0'], lsms)$GID_0                                   # create region names using the country name of GADM division
+lsms$gadm_1 <- terra::extract(sixteen_count_distr[, 'NAME_1'], lsms)$NAME_1                                 # create region names using the level 1 of GADM division
+lsms$gadm_2 <- terra::extract(sixteen_count_distr[, 'NAME_2'], lsms)$NAME_2                                 # create region names using the level 2 of GADM division
+lsms$gadm_3 <- terra::extract(sixteen_count_distr[, 'NAME_3'], lsms)$NAME_3                                 # create region names using the level 3 of GADM division
+lsms$gadm_4 <- terra::extract(sixteen_count_distr[, 'NAME_4'], lsms)$NAME_4                                 # create region names using the level 4 of GADM division
 lsms_01 <- lsms # backup the whole LSMS + Zambia spat vector
 terra::writeVector(lsms_01, '../data/processed/backup_untrimmed_lsms_01_africa.shp', overwrite = T)
 
@@ -126,17 +129,6 @@ terra::writeVector(lsms_01, '../data/processed/backup_untrimmed_lsms_01_africa.s
 lsms <- lsms [!lsms$gadm_1 %in% c('Bauchi', 'Borno', 'Yobe')]
 lsms_02 <- lsms
 # Trim to exclude extremely large farms (> 95th quantile) and landless farms (at GADM_1 level)
-lsms_per_region <- terra::as.data.frame(lsms) |>
-  group_by(country, gadm_0, gadm_1) |>
-  summarize(n_farms_years = n(),
-            min  = min(farm_area_ha, na.rm = T), max = max(farm_area_ha, na.rm = T),
-            q_01 = quantile(farm_area_ha, 0.01), q_99 = quantile(farm_area_ha, 0.99),
-            q_05 = quantile(farm_area_ha, 0.05), q_95 = quantile(farm_area_ha, 0.95),
-            q_10 = quantile(farm_area_ha, 0.10), q_90 = quantile(farm_area_ha, 0.90),
-            low_fence = quantile(farm_area_ha, 0.25) - 1.5 * IQR(farm_area_ha, na.rm = T),
-            high_fence = quantile(farm_area_ha, 0.75) + 1.5 * IQR(farm_area_ha, na.rm = T) ) |>
-  ungroup() |>
-  arrange(desc(max))
 lsms_per_region <- terra::as.data.frame(lsms) |>
   group_by(country, gadm_0, gadm_1) |>
   summarize(n_farms_years = n(),
@@ -214,29 +206,31 @@ select_variables <- function(x){
 # my_lsms <- data.frame(cbind(my_lsms, terra::extract(stacked, terra::vect(my_lsms), na.rm = T))) 
 
 lsms_spatial <- select_variables(trim_1); print(nrow(lsms_spatial))
-      save(lsms_spatial, file='../data/processed/lsms_untrimmed_africa.rdata')
+      saveRDS(lsms_spatial, file='../data/processed/lsms_untrimmed_africa.rds')
 lsms_spatial <- select_variables(trim_2); print(nrow(lsms_spatial))
-        save(lsms_spatial, file='../data/processed/lsms_trimmed_99th_africa.rdata')
+        saveRDS(lsms_spatial, file='../data/processed/lsms_trimmed_99th_africa.rds')
 lsms_spatial <- select_variables(trim_3); print(nrow(lsms_spatial))
-        save(lsms_spatial, file='../data/processed/lsms_trimmed_95th_africa.rdata')
+        saveRDS(lsms_spatial, file='../data/processed/lsms_trimmed_95th_africa.rds')
 
+        
 # terra::writeVector(terra::vect(lsms_03), '../data/processed/lsms_trimmed_africa.shp', overwrite = T)
+write.csv(lsms_spatial, '../data/processed/lsms_spatial_with_country_names.csv', row.names = F)
 
 lsms_spatial <- lsms_spatial |>
   select(x, y, farm_area_ha, cropland, cattle, pop,cropland_per_capita,
          sand, slope, temperature, rainfall, maizeyield, market) |>
   na.omit() 
 write.csv(lsms_spatial |> select(!c(x, y)), '../data/processed/lsms_spatial.csv', row.names = F)
-save(stacked, file='../data/processed/stacked_africa.Rdata')
-save(lsms_spatial, file='../data/processed/lsms_spatial_africa.Rdata')
-save(lsms_00, lsms_01, lsms_02, # lsms_03, my_lsms,
-     lsms_spatial,  file='../data/processed/my_lsms_africa.Rdata') 
+saveRDS(stacked, file='../data/processed/stacked_africa.Rds')
+saveRDS(lsms_spatial, file='../data/processed/lsms_spatial_africa.Rds')
+saveRDS(list(lsms_00, lsms_01, lsms_02, # lsms_03, my_lsms,
+          lsms_spatial),  file='../data/processed/my_lsms_africa.Rds') 
 
 # ------------------------------------------------------------------------------
 # # per country
 # per_country_data=function(my_country){
 #   print(paste0('==========================', my_country, '======================='))
-#   cty <- subset(ssa, ssa$GID_0==fourteen_country_codes[which(fourteen_countries == my_country)])
+#   cty <- subset(ssa, ssa$GID_0==sixteen_country_codes[which(sixteen_countries == my_country)])
 #   lsms03 <- terra::vect(lsms_spatial, geom = c('x', 'y'))
 #   lsms_cty <- terra::crop(lsms_03, cty, mask = T)
 #   
@@ -261,4 +255,4 @@ save(lsms_00, lsms_01, lsms_02, # lsms_03, my_lsms,
 #   save(stacked_cty, file=paste0('../data/processed/stacked_',my_country,'.Rdata'))
 #   save(lsms_cty_spatial, file=paste0('../data/processed/lsms_cty_spatial_',my_country,'.Rdata'))
 # }
-# sapply(fourteen_countries, per_country_data)
+# sapply(sixteen_countries, per_country_data)

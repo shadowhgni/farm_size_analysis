@@ -9,9 +9,8 @@ setwd(paste0(here::here(), '/scripts'))
 rm(list=ls())
 
 # ------------------------------------------------------------------------------
-# for all raw files, get 'my_lsms_africa.Rdata' and pick my_lsms
 # lsms data
-load('../data/processed/lsms_trimmed_95th_africa.rdata') 
+lsms_spatial <- read.csv('../data/processed/lsms_and_zambia.csv') 
 
 my_lsms <- lsms_spatial |>
   select(country, year, farm_area_ha) |>
