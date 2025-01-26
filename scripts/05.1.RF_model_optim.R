@@ -17,7 +17,7 @@ rf_optim <- function(x) {
 	outfile <- file.path(output_path, outfile)
 	# if (file.exists(output_file)) return("file existed")
 
-	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.Rds"))
+	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.rds"))
 
 # keep only variables needed in the model
 	lsms_spatial <- lsms_spatial |>  dplyr::select(farm_area_ha, cropland, cattle, pop, cropland_per_capita,
