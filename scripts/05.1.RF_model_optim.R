@@ -4,8 +4,11 @@
 rf_optim <- function(x) {
 
 # input and ouptut foders and files
-	input_path <- "data"
-	output_path <- "output"
+#	input_path <- "data"
+#	output_path <- "output"
+	input_path <- "data/processed"
+	output_path <- "output/RFoptim"
+	dir.create(output_path, FALSE, TRUE)
 
 	treatment <- paste0(x[,1:3], collapse="-")
 	outfile <- paste0("RFoptim_", treatment, "_mbucket-", x$mbuck, ".Rds") 
