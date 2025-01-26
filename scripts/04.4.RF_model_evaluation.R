@@ -175,13 +175,13 @@ summarize <- function() {
 countries <- c("Benin", "Burkina", "Cote_d_Ivoire", "Ethiopia", "Ghana", "Guinea_Bissau", "Malawi", "Mali", "Niger", "Nigeria", "Rwanda", "Senegal", "Tanzania", "Togo", "Uganda", "Zambia")
 country_codes <- c("BEN", "BFA", "CIV", "ETH", "GHA", "GNB", "MWI", "MLI", "NER", "NGA", "RWA", "SEN", "TZA", "TGO", "UGA", "ZMB")
 
-trts <- expand.grid(country=1:14, model=c("RF", "TPS"), means=c(TRUE, FALSE), test=c(TRUE, FALSE))
+trts <- expand.grid(country=1:length(countries), model=c("RF", "TPS"), means=c(TRUE, FALSE), test=c(TRUE, FALSE))
 trts <- trts[!((trts$model=="TPS") & (!trts$test)), ]
 
 
 ### sequential with sampling
 seqfun <- function() {
-	for (i in 1:96) { 
+	for (i in 1:nrow(trts)) { 
 		leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i], sample_size=100)
 	}
 }
@@ -189,13 +189,13 @@ seqfun <- function() {
 
 ### parallel
 i <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-if (i <= 96) {
+if (i <= nrow(trts)) {
 	leave_one_country_models(countries[trts$country[i]], country_codes[trts$country[i]], trts$model[i], trts$means[i], trts$test[i])
 	print("OK")
-} else if (i == 97) {
+} else if (i == nrow(trts)) {
 	summarize()
 } else {
-	print("done (i > 97)")
+	print("done (i > nrow(trts))")
 }
 
 
