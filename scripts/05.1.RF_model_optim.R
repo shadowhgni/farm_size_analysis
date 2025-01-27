@@ -15,7 +15,7 @@ rf_optim <- function(x) {
 	print(paste("-------- run =", outfile, "----------"))
 	dir.create(output_path, FALSE, FALSE) 
 	outfile <- file.path(output_path, outfile)
-	# if (file.exists(output_file)) return("file existed")
+	if (file.exists(output_file)) return("file existed")
 
 	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.rds"))
 
