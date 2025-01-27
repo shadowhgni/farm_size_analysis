@@ -200,6 +200,6 @@ if (i <= nrow(trts)) {
 
 
 # slurm options
-#sbatch --array=1-97 -p bmh --time=600 --mem=16G --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
+#sbatch --array=1-97 -p bmh --time=600 --mem=16G --exclude=bm5 --job-name=farms ~/farm/clusterR.sh scripts/04.4.RF_model_evaluation.R
 
 

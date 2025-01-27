@@ -15,7 +15,7 @@ rf_optim <- function(x) {
 	print(paste("-------- run =", outfile, "----------"))
 	dir.create(output_path, FALSE, FALSE) 
 	outfile <- file.path(output_path, outfile)
-	if (file.exists(output_file)) return("file existed")
+	if (file.exists(outfile)) return("file existed")
 
 	lsms_spatial <- readRDS(file.path(input_path, "lsms_trimmed_95th_africa.rds"))
 
@@ -75,4 +75,4 @@ if (i <= nrow(tune_grid)) {
 }
 
 # slurm options
-#sbatch --array=1-4992 -p bmh --time=1200 --mem=32G --job-name=farms ~/farm/clusterR.sh scripts/05.1.RF_model_optim.R
+#sbatch --array=1-4992 -p bmh --time=1200 --mem=32G --exclude=bm5 --job-name=farms ~/farm/clusterR.sh scripts/05.1.RF_model_optim.R
