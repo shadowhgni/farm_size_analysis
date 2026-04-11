@@ -18,12 +18,12 @@ name: Test R Scripts
 
 on:
   push:
-    branches: [main, develop]
+    branches: [final, develop]
     paths:
       - 'scripts/**'
       - '.github/workflows/test-scripts.yml'
   pull_request:
-    branches: [main]
+    branches: [final]
     paths:
       - 'scripts/**'
       - '.github/workflows/test-scripts.yml'
