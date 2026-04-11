@@ -247,7 +247,7 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 
 * **D. Hougni (CGIAR):** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d.hougni@cgiar.org
 * **D. Hougni (Personal):** &nbsp;&nbsp;&nbsp;shadowhgni@yahoo.fr
-* **Issues:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[github.com/shadowhgni/farm_size_analysis/issues](https://github.com/shadowhgni/farm_size_analysis/issues) |
+* **Issues:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[github.com/shadowhgni/farm_size_analysis/issues](https://github.com/shadowhgni/farm_size_analysis/issues)
 ---
 
 <div align="center"><i>Last updated: April 2026</i></div>
