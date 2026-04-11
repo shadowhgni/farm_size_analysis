@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Test R Scripts](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml/badge.svg)](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml)
+[![Test Scripts](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml/badge.svg)](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15652768.svg)](https://doi.org/10.5281/zenodo.15652768)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![R](https://img.shields.io/badge/R-%3E%3D4.3-276DC3?logo=r)](https://www.r-project.org/)
@@ -253,9 +253,9 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 ---
 
 ## 📞 Contact
-* D. Hougni (CGIAR):		d.hougni@cgiar.org
-* D. Hougni (Personal):	shadowhgni@yahoo.fr
-* Issues: [github.com/shadowhgni/farm_size_analysis/issues](github.com/shadowhgni/farm_size_analysis/issues)
+* D. Hougni (CGIAR):         d.hougni@cgiar.org
+* D. Hougni (Personal):      shadowhgni@yahoo.fr
+* Issues:                    [github.com/shadowhgni/farm_size_analysis/issues](github.com/shadowhgni/farm_size_analysis/issues)
 
 ---
 
