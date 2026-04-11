@@ -202,17 +202,8 @@ The test runner produces a summary report at `output/reports/full_pipeline_test_
 
 The models are trained on LSMS surveys from **16 countries**:
 
-<div align="center">
-
-| West Africa | East Africa | Southern Africa |
-|:-----------:|:-----------:|:---------------:|
-| Benin · Burkina Faso · Côte d'Ivoire | Ethiopia · Rwanda · Tanzania | Malawi · Zambia |
-| Ghana · Guinea-Bissau · Mali | Uganda | |
-| Niger · Nigeria · Senegal · Togo | | |
-
-</div>
-
-> ℹ️ Survey wave counts and year ranges in the CI pipeline are synthetic stubs. See the original paper for the actual survey inventory.
+Benin, Burkina Faso, Côte d'Ivoire, Ethiopia, Ghana, Guinea-Bissau, Malawi, Mali, Niger, Nigeria, Rwanda, Senegal, Tanzania, Togo, Uganda, Zambia
+> The survey wave counts and year ranges shown in the CI pipeline are synthetic stubs, **not actual values**. Refer to the original paper for the true survey inventory.
 
 ---
 
@@ -220,7 +211,7 @@ The models are trained on LSMS surveys from **16 countries**:
 
 If you use this code or data, please cite the original authors:
 
-> Hougni D.G.J.M., Chamberlin J., Hijmans R., Baudron F., Giller K. & Silva J.V. (2025). *Dataset: A third of sub-Saharan Africa's farms cultivate less than half an hectare of land*. Zenodo. https://doi.org/10.5281/zenodo.15652768
+> Hougni D.G.J.M., Chamberlin J., Hijmans R., Baudron F., Giller K. & Silva J.V. (2025). *Dataset: A third of sub-Saharan Africa's farms cultivate less than half a hectare of land*. Zenodo. https://doi.org/10.5281/zenodo.15652768
 
 The documented and reorganized repository (script headers, CI pipeline, synthetic data framework, README) was produced by D. Hougni (CGIAR) with assistance from Claude (Anthropic, 2025–2026).
 
@@ -253,9 +244,9 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 ---
 
 ## 📞 Contact
-* D. Hougni (CGIAR):          d.hougni@cgiar.org
-* D. Hougni (Personal):       shadowhgni@yahoo.fr
-* Issues:                     [github.com/shadowhgni/farm_size_analysis/issues](github.com/shadowhgni/farm_size_analysis/issues)
+* **D. Hougni (CGIAR):**          d.hougni@cgiar.org
+* **D. Hougni (Personal):**       shadowhgni@yahoo.fr
+* **Issues:**                     [github.com/shadowhgni/farm_size_analysis/issues](github.com/shadowhgni/farm_size_analysis/issues)
 
 ---
 
