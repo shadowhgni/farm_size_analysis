@@ -10,7 +10,7 @@
 
 **Random Forest and Quantile Regression Forest models to predict farm size distributions and number of farms across Sub-Saharan Africa**
 
-*Trained on ~180,000 LSMS farm surveys from 16 countries · Applied continent-wide at 10×10 km resolution*
+*Trained on ~180,000 LSMS farm surveys from 16 countries · Applied continent-wide at ~10 km resolution*
 
 </div>
 
@@ -244,10 +244,11 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 ---
 
 ## 📞 Contact
-* **D. Hougni (CGIAR):**          d.hougni@cgiar.org
-* **D. Hougni (Personal):**       shadowhgni@yahoo.fr
-* **Issues:**                     [github.com/shadowhgni/farm_size_analysis/issues](github.com/shadowhgni/farm_size_analysis/issues)
-
+| | |
+|---|---|
+| 🏢 **D. Hougni (CGIAR)** | d.hougni@cgiar.org |
+| 📧 **D. Hougni (Personal)** | shadowhgni@yahoo.fr |
+| 🐛 **Issues** | [github.com/shadowhgni/farm_size_analysis/issues](https://github.com/shadowhgni/farm_size_analysis/issues) |
 ---
 
 <div align="center"><i>Last updated: April 2026</i></div>
