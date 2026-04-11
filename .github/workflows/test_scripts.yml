@@ -234,10 +234,10 @@ jobs:
             git commit -m "ci: update test log [skip ci]"
           # Stash any remaining unstaged output files before rebase
           git stash push --include-untracked -m "ci-outputs" || true
-          git fetch origin main
-          git rebase origin/main -X ours || git rebase --skip
+          git fetch origin final
+          git rebase originfinal -X ours || git rebase --skip
           git stash pop || true
-          git push origin main --force-with-lease
+          git push origin final --force-with-lease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
