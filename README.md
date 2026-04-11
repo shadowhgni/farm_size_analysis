@@ -255,7 +255,7 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 ## 📞 Contact
 * D. Hougni (CGIAR):		d.hougni@cgiar.org
 * D. Hougni (Personal):	shadowhgni@yahoo.fr
-* Issues: github.com/shadowhgni/farm_size_analysis/issues
+* Issues: [github.com/shadowhgni/farm_size_analysis/issues](github.com/shadowhgni/farm_size_analysis/issues)
 
 ---
 
