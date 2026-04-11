@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Test R Scripts](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test-scripts.yml/badge.svg)](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test-scripts.yml)
+[![Test R Scripts](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml/badge.svg)](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15652768.svg)](https://doi.org/10.5281/zenodo.15652768)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![R](https://img.shields.io/badge/R-%3E%3D4.3-276DC3?logo=r)](https://www.r-project.org/)
@@ -27,24 +27,6 @@ This project develops machine learning models to characterize the spatial distri
 | 🌾 **Training data** | ~180,000 farms · 16 countries · LSMS surveys |
 | 🤖 **Models** | Random Forest · Quantile RF · ExtraTrees |
 | 📦 **Languages** | R (statistical modelling, figures) · Python (ML pipeline) |
-
----
-
-## 🔄 Pipeline Overview
-
-```mermaid
-flowchart LR
-    A[LSMS Surveys\n16 countries] --> C
-    B[Spatial Layers\nCropland · Climate\nSoil · Market] --> C
-    C[Data Harmonization\n02–03] --> D[RF Model\n04–05]
-    C --> E[QRF Model\n06]
-    D --> F[SSA Predictions\n08]
-    E --> F
-    F --> G[Farm Size\nDistributions\n07–08]
-    F --> H[Validation\n10]
-    G --> I[Figures\nF01–F03\nS01–S08]
-    H --> I
-```
 
 ---
 
@@ -271,12 +253,9 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 ---
 
 ## 📞 Contact
-
-| | |
-|---|---|
-| 🏢 **CGIAR** | d.hougni@cgiar.org |
-| 📧 **Personal** | shadowhgni@yahoo.fr |
-| 🐛 **Issues** | [github.com/shadowhgni/farm_size_analysis/issues](https://github.com/shadowhgni/farm_size_analysis/issues) |
+D. Hougni (CGIAR):		d.hougni@cgiar.org
+D. Hougni (Personal):	shadowhgni@yahoo.fr
+Issues: github.com/shadowhgni/farm_size_analysis/issues
 
 ---
 
