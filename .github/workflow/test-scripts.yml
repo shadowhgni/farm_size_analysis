@@ -20,12 +20,12 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'farm_size_project_complete/**'
+      - 'scripts/**'
       - '.github/workflows/test-scripts.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'farm_size_project_complete/**'
+      - 'scripts/**'
       - '.github/workflows/test-scripts.yml'
   workflow_dispatch:   # keeps the manual "Run workflow" button
 
@@ -45,8 +45,8 @@ jobs:
 
       - name: Check R script syntax
         run: |
-          if [ -d "farm_size_project_complete/scripts" ]; then
-            SCRIPTS_DIR="farm_size_project_complete/scripts"
+          if [ -d "/scripts" ]; then
+            SCRIPTS_DIR="/scripts"
           elif [ -d "scripts" ]; then
             SCRIPTS_DIR="scripts"
           else
@@ -102,7 +102,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-pkgs-${{ runner.os }}-${{ hashFiles('farm_size_project_complete/renv.lock', '.github/workflows/test-scripts.yml') }}
+          key: r-pkgs-${{ runner.os }}-${{ hashFiles('/renv.lock', '.github/workflows/test-scripts.yml') }}
           restore-keys: |
             r-pkgs-${{ runner.os }}-
 
@@ -179,8 +179,8 @@ jobs:
       - name: Find scripts directory
         id: find-scripts
         run: |
-          if [ -d "farm_size_project_complete/scripts" ]; then
-            echo "scripts_dir=farm_size_project_complete/scripts" >> $GITHUB_OUTPUT
+          if [ -d "/scripts" ]; then
+            echo "scripts_dir=/scripts" >> $GITHUB_OUTPUT
             echo "project_dir=farm_size_project_complete"         >> $GITHUB_OUTPUT
           elif [ -d "scripts" ]; then
             echo "scripts_dir=scripts" >> $GITHUB_OUTPUT
