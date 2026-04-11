@@ -22,7 +22,7 @@ on:
     branches: [final, develop]
     paths:
       - 'scripts/**'
-      - '.github/workflows/test-scripts.yml'
+      - '.github/workflows/test_scripts.yml'
   pull_request:
     branches: [final]
     paths:
@@ -235,7 +235,7 @@ jobs:
           # Stash any remaining unstaged output files before rebase
           git stash push --include-untracked -m "ci-outputs" || true
           git fetch origin final
-          git rebase originfinal -X ours || git rebase --skip
+          git rebase origin/final -X ours || git rebase --skip
           git stash pop || true
           git push origin final --force-with-lease
         env:
