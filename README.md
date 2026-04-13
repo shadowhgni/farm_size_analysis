@@ -213,7 +213,7 @@ If you use this code or data, please cite the original authors:
 
 > Hougni D.G.J.M., Chamberlin J., Hijmans R., Baudron F., Giller K. & Silva J.V. (2025). *Dataset: A third of sub-Saharan Africa's farms cultivate less than half a hectare of land*. Zenodo. https://doi.org/10.5281/zenodo.15652768
 
-The documented and reorganized repository (script headers, CI pipeline, synthetic data framework, README) was produced by D. Hougni (CIMMYT) with assistance from Claude (Anthropic, 2025–2026).
+The documented and reorganized repository (script headers, CI pipeline, synthetic data framework, README) was produced by D. Hougni (CIMMYT) with assistance from Claude AI (Anthropic, 2025–2026).
 
 <details>
 <summary>BibTeX</summary>
