@@ -213,7 +213,7 @@ If you use this code or data, please cite the original authors:
 
 > Hougni D.G.J.M., Chamberlin J., Hijmans R., Baudron F., Giller K. & Silva J.V. (2025). *Dataset: A third of sub-Saharan Africa's farms cultivate less than half a hectare of land*. Zenodo. https://doi.org/10.5281/zenodo.15652768
 
-The documented and reorganized repository (script headers, CI pipeline, synthetic data framework, README) was produced by D. Hougni (CGIAR) with assistance from Claude (Anthropic, 2025–2026).
+The documented and reorganized repository (script headers, CI pipeline, synthetic data framework, README) was produced by D. Hougni (CIMMYT) with assistance from Claude (Anthropic, 2025–2026).
 
 <details>
 <summary>BibTeX</summary>
@@ -245,9 +245,9 @@ Released under **CC BY 4.0** — consistent with the original Zenodo record. Fre
 
 ## 📞 Contact
 
-* **D. Hougni (CGIAR):** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d.hougni@cgiar.org
-* **D. Hougni (Personal):** &nbsp;&nbsp;&nbsp;shadowhgni@yahoo.fr
-* **Issues:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[github.com/shadowhgni/farm_size_analysis/issues](https://github.com/shadowhgni/farm_size_analysis/issues)
+* 🏢 **D. Hougni (CIMMYT):** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;d.hougni@cgiar.org
+* 📧 **D. Hougni (Personal):** &nbsp;&nbsp;&nbsp;shadowhgni@yahoo.fr
+* 🐛 **Issues:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[github.com/shadowhgni/farm_size_analysis/issues](https://github.com/shadowhgni/farm_size_analysis/issues)
 ---
 
 <div align="center"><i>Last updated: April 2026</i></div>
