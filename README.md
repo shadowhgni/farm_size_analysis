@@ -3,7 +3,7 @@
 <div align="center">
 
 [![Test Scripts](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml/badge.svg)](https://github.com/shadowhgni/farm_size_analysis/actions/workflows/test_scripts.yml)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15652768.svg)](https://doi.org/10.5281/zenodo.15652768)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19547104.svg)](https://doi.org/10.5281/zenodo.19547104)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![R](https://img.shields.io/badge/R-%3E%3D4.3-276DC3?logo=r)](https://www.r-project.org/)
 [![Python](https://img.shields.io/badge/Python-%3E%3D3.9-3776AB?logo=python)](https://www.python.org/)
@@ -211,7 +211,7 @@ Benin, Burkina Faso, Côte d'Ivoire, Ethiopia, Ghana, Guinea-Bissau, Malawi, Mal
 
 If you use this code or data, please cite the original authors:
 
-> Hougni D.G.J.M., Chamberlin J., Hijmans R., Baudron F., Giller K. & Silva J.V. (2025). *Dataset: A third of sub-Saharan Africa's smallholders cultivate less than half a hectare of land*. Zenodo. https://doi.org/10.5281/zenodo.15652768
+> Hougni D.G.J.M., Chamberlin J., Hijmans R., Baudron F., Giller K. & Silva J.V. (2025). *Dataset: A third of sub-Saharan Africa's smallholders cultivate less than half a hectare of land*. Zenodo. https://doi.org/10.5281/zenodo.19547104
 
 The documented and reorganized repository (script headers, CI pipeline, synthetic data framework, README) was produced by D. Hougni (CIMMYT) with assistance from Claude AI (Anthropic, 2025–2026).
 
@@ -227,8 +227,8 @@ The documented and reorganized repository (script headers, CI pipeline, syntheti
                 less than half an hectare of land}},
   year      = {2025},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.15652768},
-  url       = {https://doi.org/10.5281/zenodo.15652768}
+  doi       = {10.5281/zenodo.19547104},
+  url       = {https://doi.org/10.5281/zenodo.19547104}
 }
 ```
 </details>
